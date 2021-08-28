@@ -225,6 +225,7 @@ int __cdecl main(int argc, char* argv[])
         printf("ERROR: Directory \"%s\" not found!", full_path);
         return 0;
     }
+    cropTrailingSlash(full_path);
     printf("save dir: %s\n\n", full_path);
     
     s = initConnection(&addr_info, family, Address, port_str, &ListenSocket, AI_PASSIVE);
@@ -544,11 +545,19 @@ int handleData(
             goto clean;
         }
 
+        if ( strlen(rec_dir) + file_header->sub_dir_ln + file_header->base_name_ln + 3 >= MAX_PATH )
+        {
+            sendAnswer(4, FS_ERROR_FILE_PATH_TOO_BIG, 0, ClientSocket, is_encrypted, key_header);
+            s = -1;
+            goto clean;
+        }
+
+        memset(file_path, 0, MAX_PATH);
+        int pb = sprintf(file_path, "%s", rec_dir);
         if ( file_header->sub_dir_ln != 0 )
         {
-            memset(file_path, 0, MAX_PATH);
             convertPathSeparator(sub_dir);
-            sprintf(file_path, "%s%c%s", rec_dir, PATH_SEPARATOR, sub_dir);
+            pb += sprintf(&file_path[pb], "%c%s", PATH_SEPARATOR, sub_dir);
             errsv = mkdir_r(file_path);
             if ( errsv != 0 )
             {
@@ -558,9 +567,7 @@ int handleData(
             }
         }
 
-        memset(file_path, 0, MAX_PATH);
-        sprintf(file_path, "%s%c%s%c%s", rec_dir, PATH_SEPARATOR, sub_dir, PATH_SEPARATOR, base_name);
-        //sprintf(file_path, "%s%c%s", rec_dir, PATH_SEPARATOR, base_name);
+        sprintf(&file_path[pb], "%c%s", PATH_SEPARATOR, base_name);
         file_path[MAX_PATH - 1] = 0;
 
         printFsFileHeader(file_header, " - ");
@@ -803,7 +810,7 @@ bool checkHash(char* path, uint8_t* f_hash)
 
 void printUsage()
 {
-    printf("Usage: %s port rec%cdir [/i 4|6] [/k path/to/key]\n", APP_NAME, PATH_SEPARATOR);
+    printf("Usage: %s port rec%cdir [%ci 4|6] [%ck path%cto%ckey]\n", APP_NAME, PATH_SEPARATOR, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PATH_SEPARATOR, PATH_SEPARATOR);
     printf("\n");
     printf("Version: %s\n", APP_VERSION);
     printf("Last changed: %s\n", APP_LAST_CHANGED);
@@ -811,10 +818,16 @@ void printUsage()
 
 void printHelp()
 {
+#ifdef _WIN32
+    const char* key_type = "der";
+#else
+    const char* key_type = "pem";
+#endif
+
     printUsage();
     printf("\nOptions\n");
     printf(" - port : The server listening port.\n");
     printf(" - rec%cdir : The existing base directory, the shared files are stored in.\n", PATH_SEPARATOR);
     printf(" - %ci : IP version 4 (default) or 6.\n", PARAM_IDENTIFIER);
-    printf(" - %ck : Path to a private key.der file to decrypt encrypted data from the client.\n", PARAM_IDENTIFIER);
+    printf(" - %ck : Path to a private key.%s file to decrypt encrypted data from the client.\n", PARAM_IDENTIFIER, key_type);
 }

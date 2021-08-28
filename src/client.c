@@ -730,7 +730,7 @@ bool receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader
 
 void printUsage()
 {
-    printf("Usage: %s ip port [%cc] [%cr] [%cf] [%ci 4] [%ck] path [another%cpath ...]\n", APP_NAME, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PATH_SEPARATOR);
+    printf("Usage: %s ip port [%cc] [%cr] [%cf] [%ci 4] [%ck pub.key] path [another%cpath ...]\n", APP_NAME, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PATH_SEPARATOR);
     printf("\n");
     printf("Version: %s\n", APP_VERSION);
     printf("Last changed: %s\n", APP_LAST_CHANGED);
@@ -738,6 +738,12 @@ void printUsage()
 
 void printHelp()
 {
+#ifdef _WIN32
+    const char* key_type = "der";
+#else
+    const char* key_type = "pem";
+#endif
+
     printUsage();
     printf("\nOptions\n");
     printf(" - ip : The server ip port.\n");
@@ -746,6 +752,6 @@ void printHelp()
     printf(" - %cr : Copy dirs recursivly.\n", PARAM_IDENTIFIER);
     printf(" - %cf : Flatten copied dirs to base dir. Only meaningful if /r is set,\n", PARAM_IDENTIFIER);
     printf(" - %ci : IP version 4 (default) or 6.\n", PARAM_IDENTIFIER);
-    printf(" - %ck : Path to a public RSA key.der file used to encrypt the data.\n", PARAM_IDENTIFIER);
+    printf(" - %ck : Path to a public RSA key.%s file used to encrypt the data.\n", PARAM_IDENTIFIER, key_type);
     printf(" - path : One or more pathes to files or directories to be send.\n");
 }

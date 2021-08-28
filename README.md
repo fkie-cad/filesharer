@@ -11,8 +11,8 @@ To prevent this, drop this tool in an "exclusion" folder.
 
 
 ## Version ##
-1.3.10  
-Last changed: 27.08.2021
+1.3.11  
+Last changed: 28.08.2021
 
 
 ## Requirements
