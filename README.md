@@ -1,7 +1,7 @@
 # TCP Fileshare client and server
 Cross Os (Linux/Windows) Fileshare client and server.  
 
-Currently working just one-way and not bidirectional.
+Currently, working just one-way and not bidirectional.
 
 Encryption is supported, but still in experimental state.
 
@@ -47,7 +47,7 @@ $devcmd> msbuild [server.vcxproj|client.vcxproj] [/p:Platform=x86|x64] [/p:Confi
 $ ./linuxBuild.sh [-t all|server|client] [-m Debug|Release] [-h]
 ```
 
-### Linux gcc
+### Linux gcc plain
 ```bash
 $ mkdir build
 $ gcc -o build/FsClient -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lssl -lcrypto src/client.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
@@ -65,7 +65,7 @@ $ server port dir [-i 4|6] [-k path/to/priv.key]
  - port:uint16 : The listening port number of the server.
  - dir:string : A directory to store the files in. 
  - -i : IP version 4 (default) or 6. 
- - -k : Path to an (unecrypted) private RSA key (Windows: .der, Linux: .pem) file to decrypt encrypted data from the client. 
+ - -k : Path to an (unencrypted) private RSA key (Windows: .der, Linux: .pem) file to decrypt encrypted data from the client. 
  
 **Example:**
 plain
@@ -85,12 +85,12 @@ $ client ip port [-c] [-r] [-f] [-i 4] [-k path/to/pub.key] path [an/other/path 
 **Options:**
  - ip:string : Dotted ip address of the server.
  - port:uint16 : The listening port number of the server.
- - -c : Check hashes of files, after being transfered. Default if transfered encrypted.
- - -r : Copy directories recursivly.
+ - -c : Check hashes of files, after being transferred. Default if transferred encrypted.
+ - -r : Copy directories recursively.
  - -f : Flatten copied directories, i.e. copy all files to base dir. Only meaningful if /r is set.
  - -i : IP version 4 (default) or 6.
  - -k : Path to a public RSA key (Windows: .der, Linux: .pem) file used to encrypt the data.
- - path:string[] : One or more pathes of files or directories to be sent.
+ - path:string[] : One or more paths of files or directories to be sent.
  
 **Example:**  
 Two files, no hash check
@@ -117,12 +117,12 @@ This is done by using the `/p:RunTimeLib=Debug|Release` (msbuild) or `[/mt Relea
 
 ### Encryption
 Encryption is done by RSA (PKCS1 padding) and AES256 in CBC mode.
-The AES secret and IV is first sent encrypted with the public RSA key and then the file header and data is sent encrpted with the AES key.
+The AES secret and IV is first sent encrypted with the public RSA key and then the file header and data is sent encrypted with the AES key.
 The client has to pass a public RSA (Windows: .der, Linux: .pem) key to which the server owns the corresponding private (Windows: .der, Linux: .pem) key.
 The communication partners have to know each other beforehand and obviously both have to provide a key or none of them.
 There is no key exchange happening like e.g. in TLS.  
 
-Currently the private key has to be stored unecrypted as a file on the server system.  
+Currently, the private key has to be stored unencrypted as a file on the server system.  
 On Windows it has to be in `.der` format, on Linux in `.pem` Format.
 
 For each file a new AES key and IV is created.
@@ -132,8 +132,8 @@ This may be changed, if a better solution is found.
 
 Since the file has to be encrypted as a whole, again to don't consume the IV, there may be limits to its size if memory is low.
 This may be changed though in future versions.
-The buffer lenght type for `BCryptEncrypt` is ULONG which leads to a maximum size of max(ULONG) on this end.
-Bigger files may be transmitted splitted.
+The buffer length type for `BCryptEncrypt` is ULONG which leads to a maximum size of max(ULONG) on this end.
+Bigger files may be transmitted split.
 
 RSA padding will be changed to AOEP in the future, when it's implemented correctly working on Windows.  
 AES block cipher mode may be changed too to GCM.

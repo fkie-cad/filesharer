@@ -748,10 +748,10 @@ void printHelp()
     printf("\nOptions\n");
     printf(" - ip : The server ip port.\n");
     printf(" - port : The server listening port.\n");
-    printf(" - %cc : Check file hashes of transmitted files. Default if transfered encrypted.\n", PARAM_IDENTIFIER);
-    printf(" - %cr : Copy dirs recursivly.\n", PARAM_IDENTIFIER);
+    printf(" - %cc : Check file hashes of transmitted files. Default if transferred encrypted.\n", PARAM_IDENTIFIER);
+    printf(" - %cr : Copy dirs recursively.\n", PARAM_IDENTIFIER);
     printf(" - %cf : Flatten copied dirs to base dir. Only meaningful if /r is set,\n", PARAM_IDENTIFIER);
     printf(" - %ci : IP version 4 (default) or 6.\n", PARAM_IDENTIFIER);
     printf(" - %ck : Path to a public RSA key.%s file used to encrypt the data.\n", PARAM_IDENTIFIER, key_type);
-    printf(" - path : One or more pathes to files or directories to be send.\n");
+    printf(" - path : One or more paths to files or directories to be send.\n");
 }
