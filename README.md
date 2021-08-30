@@ -3,7 +3,7 @@ Cross Os (Linux/Windows) Fileshare client and server.
 
 Currently working just one-way and not bidirectional.
 
-Encryption is supported, but currently in experimental state.
+Encryption is supported, but still in experimental state.
 
 Warning: 
 This tool at some stages has been flagged as a positive threat by Windows Defender for unknown reasons. 
@@ -19,7 +19,7 @@ Last changed: 28.08.2021
 ### Linux ###
 - Openssl library
 - gcc
-- cmake
+- [cmake]
 
 ### Windows ###
 - msbuild 
@@ -47,6 +47,13 @@ $devcmd> msbuild [server.vcxproj|client.vcxproj] [/p:Platform=x86|x64] [/p:Confi
 $ ./linuxBuild.sh [-t all|server|client] [-m Debug|Release] [-h]
 ```
 
+### Linux gcc
+```bash
+$ mkdir build
+$ gcc -o build/FsClient -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lssl -lcrypto src/client.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
+$ gcc -o build/FsServer -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lssl -lcrypto src/server.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
+```
+Use `clang` instead of `gcc` in Termux on Android.
 
 ## Run
 ### Server
