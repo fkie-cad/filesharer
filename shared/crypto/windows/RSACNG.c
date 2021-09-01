@@ -7,8 +7,9 @@
 #include <stdlib.h>
 
 #include "../../winDefs.h"
-#include "../../winErrPrint.h"
+#ifdef DEBUG_PRINT
 #include "../../debug.h"
+#endif
 
 
 
@@ -322,6 +323,13 @@ int RSA_importPubKeyFromFile(
     ULONG modulus_bytes = wc_blob_pk->bitlen >> 3;
     ULONG blob_ln = sizeof(BCRYPT_RSAKEY_BLOB) + sizeof(wc_blob_pk->pubexp) + modulus_bytes;
     pbC = (PBYTE)LocalAlloc(0, blob_ln);
+    if ( pbC == NULL )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): LocalAlloc\n", GetLastError());
+#endif
+        goto clean;
+    }
     RtlZeroMemory(pbC, blob_ln);
     BYTE* ptr;
     BCRYPT_RSAKEY_BLOB* blob = (BCRYPT_RSAKEY_BLOB*)pbC;
@@ -457,6 +465,13 @@ int RSA_exportPubKeyToDER(
     
     blob_ln = blob_ln_res;
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
+    if ( buffer == NULL )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): LocalAlloc\n", GetLastError());
+#endif
+        goto clean;
+    }
     RtlZeroMemory(buffer, blob_ln);
     blob = (BCRYPT_RSAKEY_BLOB*)buffer;
 #ifdef DEBUG_PRINT
@@ -514,6 +529,13 @@ int RSA_exportPubKeyToDER(
     //}
     wc_blob_ln = sizeof(PUBLICKEYSTRUC) + 3 * sizeof(ULONG) + blob->cbModulus;
     wc_buffer = (PBYTE)LocalAlloc(0, wc_blob_ln);
+    if ( wc_buffer == NULL )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): LocalAlloc\n", GetLastError());
+#endif
+        goto clean;
+    }
     RtlZeroMemory(wc_buffer, wc_blob_ln);
     BLOBHEADER* wc_bh = (BLOBHEADER*)wc_buffer;
     wc_bh->bType = PUBLICKEYBLOB;
@@ -639,6 +661,102 @@ clean:
         LocalFree(publicKeyInfo);
     if ( publicKeyInfo_t != NULL )
         free(publicKeyInfo_t);
+
+    return (int)status;
+}
+
+int RSA_exportPubKeyToBLOB(
+    PRSA_CTXT ctxt,
+    const CHAR* path
+)
+{
+    NTSTATUS status = STATUS_SUCCESS;
+    PBYTE buffer = NULL;
+    ULONG blob_ln = 0;
+    ULONG blob_ln_res = 0;
+    BCRYPT_RSAKEY_BLOB* blob = NULL;
+    
+    status = BCryptExportKey(
+        ctxt->pub_key,
+        NULL,
+        BCRYPT_RSAPUBLIC_BLOB,
+        NULL,
+        0,
+        &blob_ln_res,
+        0
+    );
+    if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): BCryptExportKey\n", status);
+        PrintCSBackupAPIErrorMessage(status);
+#endif
+        goto clean;
+    }
+    
+    blob_ln = blob_ln_res;
+    buffer = (PBYTE)LocalAlloc(0, blob_ln);
+    if ( buffer == NULL )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): LocalAlloc\n", GetLastError());
+#endif
+        goto clean;
+    }
+    RtlZeroMemory(buffer, blob_ln);
+    blob = (BCRYPT_RSAKEY_BLOB*)buffer;
+#ifdef DEBUG_PRINT
+    printf("blob_ln: 0x%x\n", blob_ln);
+#endif
+    
+    status = BCryptExportKey(
+        ctxt->pub_key,
+        NULL,
+        BCRYPT_RSAPUBLIC_BLOB,
+        buffer,
+        blob_ln,
+        &blob_ln_res,
+        0
+    );
+    if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): BCryptExportKey\n", status);
+        PrintCSBackupAPIErrorMessage(status);
+#endif
+        goto clean;
+    }
+    
+#ifdef DEBUG_PRINT
+    printf("bc blob\n");
+    printf(" Magic: 0x%x (%.4s)\n", blob->Magic, (CHAR*)&blob->Magic);
+    printf(" BitLength: 0x%x\n", blob->BitLength);
+    printf(" cbPublicExp: 0x%x\n", blob->cbPublicExp);
+    printf(" cbModulus: 0x%x\n", blob->cbModulus);
+    printf(" cbPrime1: 0x%x\n", blob->cbPrime1);
+    printf(" cbPrime2: 0x%x\n", blob->cbPrime2);
+    
+    PBYTE ptr = NULL;
+    printf("bc blob raw bytes (0x%x):", blob_ln);
+    printMemory(buffer, blob_ln, 0x10, 0);
+    ptr = ((PBYTE)(blob + 1));
+    printf("bc blob exponent (0x%x):", blob->cbPublicExp);
+    printMemory(ptr, blob->cbPublicExp, 0x10, 0);
+    ptr += blob->cbPublicExp;
+    printf("blob data (0x%x):", blob->cbModulus);
+    printMemory(ptr, blob->cbModulus, 0x10, 0);
+#endif
+
+    status = writeFileBytes(path, (UCHAR*)blob, blob_ln);
+    if ( !status )
+    {
+        //status = STATUS_UNSUCCESSFUL;
+        goto clean;
+    }
+
+clean:
+    if ( buffer != NULL )
+        LocalFree(buffer);
 
     return (int)status;
 }
@@ -833,6 +951,13 @@ int RSA_importPrivKeyFromFile(
     ULONG prime_bytes = modulus_bytes >> 1;
     blob_ln = sizeof(BCRYPT_RSAKEY_BLOB) + sizeof(wc_blob_pk->pubexp) + (modulus_bytes << 1); // modulus_bytes + 2*prime_bytes == 2 * modulus_bytes
     pbC = (PBYTE)LocalAlloc(0, blob_ln);
+    if ( pbC == NULL )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): LocalAlloc\n", GetLastError());
+#endif
+        goto clean;
+    }
     RtlZeroMemory(pbC, blob_ln);
     BYTE* bcb_ptr;
     BYTE* wcb_ptr;
@@ -1005,6 +1130,13 @@ int RSA_exportPrivKeyToDER(
     
     blob_ln = blob_ln_res;
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
+    if ( buffer == NULL )
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): LocalAlloc\n", GetLastError());
+#endif
+        goto clean;
+    }
     RtlZeroMemory(buffer, blob_ln);
     blob = (BCRYPT_RSAKEY_BLOB*)buffer;
 #ifdef DEBUG_PRINT
@@ -1869,7 +2001,7 @@ NTSTATUS loadFileBytes(
     printf(" - path: %s\n", path);
 #endif
     
-    fpl = GetFullPathName(path, MAX_PATH, full_path, NULL);
+    fpl = GetFullPathNameA(path, MAX_PATH, full_path, NULL);
     if (!fpl)
     {
         printf("ERROR (0x%lx): Get full path failed for \"%s\".", GetLastError(), path);
@@ -2008,7 +2140,7 @@ NTSTATUS writeFileBytes(
     printf(" - path: %s\n", path);
 #endif
     
-    fpl = GetFullPathName(path, MAX_PATH, full_path, NULL);
+    fpl = GetFullPathNameA(path, MAX_PATH, full_path, NULL);
     if (!fpl)
     {
         printf("ERROR (0x%lx): Get full path failed for \"%s\".", GetLastError(), path);

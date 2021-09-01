@@ -188,13 +188,13 @@ int encryptKey(
 {
     int s = 0;
 
-    if ( plain_ln < FS_KEY_HEADER_SIZE )
-    {
-#ifdef ERROR_PRINT
-        printf("Header buffer too small\n");
-#endif
-        return s;
-    }
+//    if ( plain_ln < FS_KEY_HEADER_SIZE )
+//    {
+//#ifdef ERROR_PRINT
+//        printf("Header buffer too small\n");
+//#endif
+//        return s;
+//    }
 
     s = RSA_encrypt(
         &rsa_ctxt, 

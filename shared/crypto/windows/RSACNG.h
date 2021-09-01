@@ -39,6 +39,11 @@ int RSA_exportPubKeyToDER(
     const CHAR* path
 );
 
+int RSA_exportPubKeyToBLOB(
+    PRSA_CTXT ctxt,
+    const CHAR* path
+);
+
 /**
  * Import RSA private key from.
  * Remember to close.

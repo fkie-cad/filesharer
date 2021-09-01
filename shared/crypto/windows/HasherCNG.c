@@ -378,7 +378,7 @@ int initSha256(PSha256Ctxt ctxt)
 
     // allocate the hash object on the heap
     ctxt->hash_object = (PBYTE)HeapAlloc(heap, 0, ctxt->hash_object_size);
-    if (NULL == ctxt->hash_object)
+    if ( NULL == ctxt->hash_object )
     {
 #ifdef ERROR_PRINT
         printf("ERROR: memory allocation failed\n");

@@ -145,7 +145,7 @@
     <ClCompile Include="shared\files\Files.c;shared\files\FilesW.c" />
     <ClCompile Include="shared\net\winSock.c;shared\net\sock.c" />
   </ItemGroup>
-  <ItemGroup Condition="'$(DebugPrint)'=='1'">
+  <ItemGroup Condition="'$(DebugPrint)'!='0'">
     <ClCompile Include="shared\debug.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
