@@ -198,7 +198,7 @@ int __cdecl main(int argc, char* argv[])
     memset(full_key_path, 0, MAX_PATH);
     if ( key_path != NULL )
     {
-        s = (int)getFullPathName(key_path, full_key_path, NULL);
+        s = (int)getFullPathName(key_path, MAX_PATH, full_key_path, NULL);
         if ( !s )
         {
             printf("ERROR: Key file \"%s\" not found!", key_path);
@@ -213,7 +213,7 @@ int __cdecl main(int argc, char* argv[])
     }
 
     memset(full_path, 0, MAX_PATH);
-    s = (int)getFullPathName(rec_dir, full_path, NULL);
+    s = (int)getFullPathName(rec_dir, MAX_PATH, full_path, NULL);
     if ( !s )
     {
         printf("ERROR: Directory \"%s\" not found!", full_path);

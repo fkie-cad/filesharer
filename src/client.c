@@ -185,7 +185,7 @@ int __cdecl main(int argc , char *argv[])
     if ( key_path != NULL )
     {
         memset(full_key_path, 0, MAX_PATH);
-        s = (int)getFullPathName(key_path, full_key_path, NULL);
+        s = (int)getFullPathName(key_path, MAX_PATH, full_key_path, NULL);
         if ( !s )
         {
             errsv = getLastError();
@@ -221,7 +221,7 @@ int __cdecl main(int argc , char *argv[])
             argv[i][MAX_PATH - 1] = 0;
         
         memset(path, 0, MAX_PATH);
-        s = (int)getFullPathName(argv[i], path, &base_name);
+        s = (int)getFullPathName(argv[i], MAX_PATH ,path, &base_name);
         if ( !s )
         {
             errsv = getLastError();

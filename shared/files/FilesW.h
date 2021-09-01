@@ -89,6 +89,7 @@ uint64_t countFiles(
 
 size_t getFullPathName(
     const char* src, 
+    size_t n,
     char* full_path, 
     const char** base_name
 );

@@ -74,7 +74,7 @@ $ server 8080 %tmp%
 ```
 encrypted
 ```bash
-$ server 8080 %tmp% -k dir/key.der
+$ server 8080 %tmp% -k dir\key.der
 ```
 
 ### Client
@@ -104,6 +104,7 @@ $ client 127.0.0.1 8080 -c file1 file2
 Copy directory recursivly
 ```bash
 $ client 127.0.0.1 8080 -r a/dir
+```
 encrypted
 ```bash
 $ client 127.0.0.1 8080 -k dir/key.pem file1 file2

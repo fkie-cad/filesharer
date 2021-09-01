@@ -13,7 +13,7 @@
 
 
 
-#define LINK_MAX (PATH_MAX)
+#define LINK_NAME_MAX (PATH_MAX)
 
 
 int actOnFilesInDir(const char* path, FileCallback cb, const char** types, uint32_t flags, void* params, const int* killed)
@@ -26,7 +26,7 @@ int actOnFilesInDir(const char* path, FileCallback cb, const char** types, uint3
     struct dirent *ent;
     char ent_path[PATH_MAX];
     ssize_t r;
-    char link_name[LINK_MAX];
+    char link_name[LINK_NAME_MAX];
     int s = 1;
     int recursive = flags & FILES_FLAG_RECURSIVE;
     int follow_links = flags & FILES_FLAG_FOLLOW_LINKS;
@@ -68,13 +68,13 @@ int actOnFilesInDir(const char* path, FileCallback cb, const char** types, uint3
             else if ( ent->d_type == DT_LNK && follow_links )
             {
                 snprintf(ent_path, PATH_MAX, "%s/%s", act_path, ent->d_name);
-                memset(link_name, 0, LINK_MAX);
-                r = readlink(ent_path, link_name, LINK_MAX);
+                memset(link_name, 0, LINK_NAME_MAX);
+                r = readlink(ent_path, link_name, LINK_NAME_MAX);
                 if (r < 0) {
 //                  printf("ERROR: FilesL::actOnFiles : Link resolution failed for %s\n", ent_path);
                     continue;
                 }
-                link_name[LINK_MAX-1] = 0;
+                link_name[LINK_NAME_MAX-1] = 0;
 
                 cb(link_name, ent->d_name, params);
             }
@@ -103,7 +103,7 @@ int actOnFilesInDir(const char* path, FileCallback cb, const char** types, uint3
     return s;
 }
 
-size_t expandFilePath(const char* src, char* dest)
+size_t expandFilePath(const char* src, char* dest, size_t n)
 {
     const char* env_home;
     if ( src[0] == '~' )
@@ -111,11 +111,11 @@ size_t expandFilePath(const char* src, char* dest)
         env_home = getenv("HOME");
         if ( env_home != NULL )
         {
-            snprintf(dest, PATH_MAX, "%s/%s", env_home, &src[2]);
+            snprintf(dest, n, "%s/%s", env_home, &src[2]);
         }
         else
         {
-            snprintf(dest, PATH_MAX, "%s", src);
+            snprintf(dest, n, "%s", src);
         }
     }
     else if ( src[0] != '/' )
@@ -123,18 +123,18 @@ size_t expandFilePath(const char* src, char* dest)
         char cwd[PATH_MAX-10] = {0};
         if ( getcwd(cwd, PATH_MAX-10) != NULL )
         {
-            snprintf(dest, PATH_MAX, "%s/%s", cwd, src);
+            snprintf(dest, n, "%s/%s", cwd, src);
         }
         else
         {
-            snprintf(dest, PATH_MAX, "%s", src);
+            snprintf(dest, n, "%s", src);
         }
     }
     else
     {
-        snprintf(dest, PATH_MAX, "%s", src);
+        snprintf(dest, n, "%s", src);
     }
-    dest[PATH_MAX-1] = 0;
+    dest[n-1] = 0;
     
     return strlen(dest);
 }
@@ -167,9 +167,9 @@ void listFilesOfDir(char* path)
     printf("\n");
 }
 
-size_t getFullPathName(const char* src, char* full_path, const char** base_name)
+size_t getFullPathName(const char* src, size_t n, char* full_path, const char** base_name)
 {
-    size_t n = expandFilePath(src, full_path);
+    size_t n = expandFilePath(src, full_path, n);
     if ( base_name != NULL )
         getBaseName(full_path, n, base_name);
 

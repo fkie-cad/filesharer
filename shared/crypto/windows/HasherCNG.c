@@ -89,6 +89,9 @@ int sha256FileC(const char* path, unsigned char* hash_bytes, uint16_t hash_bytes
     UCHAR buffer[BUFFER_SIZE];
     size_t offset = 0;
     int s = 0;
+    size_t parts;
+    size_t rest;
+    size_t i;
 
     if ( hash_bytes_size < ctxt->hash_size )
     {
@@ -123,9 +126,9 @@ int sha256FileC(const char* path, unsigned char* hash_bytes, uint16_t hash_bytes
         goto clean;
     }
 
-    size_t parts = file_size / BUFFER_SIZE;
-    size_t rest = file_size % BUFFER_SIZE;
-    size_t i;
+    parts = file_size / BUFFER_SIZE;
+    rest = file_size % BUFFER_SIZE;
+    i;
     for ( i = 0; i < parts; i++ )
     {
         s = hashData(buffer, BUFFER_SIZE, offset, fp, ctxt);

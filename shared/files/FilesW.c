@@ -149,10 +149,13 @@ int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32
 
 size_t getFullPathName(
     const char* src, 
+    size_t n,
     char* full_path, 
     const char** base_name
 )
 {
+    UNREFERENCED_PARAMETER(n);
+
     int fpl = GetFullPathNameA((char*)src, MAX_PATH, full_path, (char**)base_name);
     if (!fpl)
     {
@@ -173,7 +176,6 @@ int mkdir_r(const char* dir)
     int errsv;
 
     errno = 0;
-    debug_info("mkdir_r\n");
 
     // Copy char* so its mutable
     if ( len > sizeof(_path) - 1 )

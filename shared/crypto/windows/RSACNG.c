@@ -27,13 +27,13 @@ NTSTATUS writeFileBytes(
 
 
 __forceinline
-ZeroLocalFree(PVOID _b_, SIZE_T _n_) {
-    RtlZeroMemory(_b_, _n_);
+void ZeroLocalFree(PVOID _b_, SIZE_T _n_) {
+    ZeroMemory(_b_, _n_);
     LocalFree(_b_); 
 }
 __forceinline
-ZeroFree(PVOID _b_, SIZE_T _n_) {
-    RtlZeroMemory(_b_, _n_);
+void ZeroFree(PVOID _b_, SIZE_T _n_) {
+    ZeroMemory(_b_, _n_);
     free(_b_);
 }
 

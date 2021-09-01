@@ -86,7 +86,7 @@ uint64_t countFiles(
  * @param src char*
  * @param dest char*
  */
-size_t expandFilePath(const char* src, char* dest);
+size_t expandFilePath(const char* src, char* dest, size_t n);
 
 /**
  * Create a temporary file and store its name in buf.
@@ -113,7 +113,8 @@ void listFilesOfDir(char* path);
  * @param path char* Pointer to the base_name in the full_path. No allocation required.
  */
 size_t getFullPathName(
-    const char* src, 
+    const char* src,
+    size_t n,
     char* full_path, 
     const char** base_name
 );

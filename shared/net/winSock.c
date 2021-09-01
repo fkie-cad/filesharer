@@ -3,7 +3,7 @@
 #include "winSock.h"
 
 
-static wsa_started = 0;
+static int wsa_started = 0;
 
 int initS()
 {
