@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Filesharer VERSION 1.3.13 DESCRIPTION "A file share client server." LANGUAGES C)
+project(Filesharer VERSION 1.3.15 DESCRIPTION "A file share client server." LANGUAGES C)
 
 
 if (WIN32)

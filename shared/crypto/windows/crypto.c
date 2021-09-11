@@ -22,7 +22,7 @@ int c_init(
     if ( s < 0 )
     {
 #ifdef ERROR_PRINT
-        printf("RSA_init failed\n");
+        printf("ERROR: RSA_init failed\n");
 #endif
         return s;
     }
@@ -30,10 +30,14 @@ int c_init(
     if ( type == INIT_PUB_KEY )
     {
         s = importPubKeyFromFile(path);
+        if ( s != 0 )
+            return s;
     }
     else if ( type == INIT_PRIV_KEY )
     {
         s = importPrivKeyFromFile(path);
+        if ( s != 0 )
+            return s;
     }
     else
     {
@@ -44,6 +48,8 @@ int c_init(
     }
     
     s = init_AES();
+    //if ( s != 0 )
+    //    return s;
 
     return s;
 }
@@ -54,7 +60,7 @@ int init_AES()
     if ( s < 0 )
     {
 #ifdef ERROR_PRINT
-        printf("AES_init failed\n");
+        printf("ERROR: AES_init failed\n");
 #endif
         return -1;
     }
@@ -62,7 +68,7 @@ int init_AES()
     if ( AES_STD_BLOCK_SIZE != aes_ctxt.block_size )
     {
 #ifdef ERROR_PRINT
-        printf("static BLOCK_SIZE != calculated block size\n");
+        printf("ERROR: static BLOCK_SIZE != calculated block size\n");
 #endif
         return -1;
     }
@@ -102,7 +108,7 @@ int generateRand(
     if ( s != 0 )
     {
 #ifdef ERROR_PRINT
-        printf("BCryptGenRandom failed\n");
+        printf("ERROR: BCryptGenRandom failed\n");
 #endif
         return s;
     }
@@ -118,7 +124,7 @@ int importPubKeyFromFile(
     if ( s != 0 )
     {
 #ifdef ERROR_PRINT
-        printf("RSA_importPubKeyFromFile failed\n");
+        printf("ERROR (0x%x): RSA import public key failed\n", s);
 #endif
         return s;
     }
@@ -134,7 +140,7 @@ int importPrivKeyFromFile(
     if ( s != 0 )
     {
 #ifdef ERROR_PRINT
-        printf("RSA_importPrivKeyFromFile failed\n");
+        printf("ERROR (0x%x): RSA import private key failed\n", s);
 #endif
         return s;
     }
@@ -162,7 +168,7 @@ int generateAESKey(
     if ( s < 0 )
     {
 #ifdef ERROR_PRINT
-        printf("AES_generateKey failed (0x%x)\n", s);
+        printf("ERROR: AES_generateKey failed (0x%x)\n", s);
 #endif
         return s;
     }
@@ -196,7 +202,7 @@ int encryptKey(
     if ( s != 0 )
     {
 #ifdef ERROR_PRINT
-        printf("RSA_encrypt failed\n");
+        printf("ERROR: RSA_encrypt failed\n");
 #endif
         return s;
     }
@@ -223,7 +229,7 @@ int decryptKey(
     if ( s != 0 )
     {
 #ifdef ERROR_PRINT
-        printf("RSA_decrypt failed\n");
+        printf("ERROR: RSA_decrypt failed\n");
 #endif 
         return s;
     }
@@ -254,7 +260,7 @@ int encryptData(
     if ( s < 0 )
     {
 #ifdef ERROR_PRINT
-        printf("AES_encrypt failed\n");
+        printf("ERROR: AES_encrypt failed\n");
 #endif
         return s;
     }
@@ -285,7 +291,7 @@ int decryptData(
     if ( s < 0 )
     {
 #ifdef ERROR_PRINT
-        printf("AES_decrypt failed\n");
+        printf("ERROR: AES_decrypt failed\n");
 #endif
         return s;
     }
