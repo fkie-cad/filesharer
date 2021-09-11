@@ -169,7 +169,7 @@ void listFilesOfDir(char* path)
 
 size_t getFullPathName(const char* src, size_t n, char* full_path, const char** base_name)
 {
-    size_t n = expandFilePath(src, full_path, n);
+    n = expandFilePath(src, full_path, n);
     if ( base_name != NULL )
         getBaseName(full_path, n, base_name);
 
