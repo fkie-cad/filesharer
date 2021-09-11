@@ -208,7 +208,7 @@ int RSA_importPubKeyFromFile(
 #endif
         key_bytes_ln = key_buffer_ln;
         CERT_PUBLIC_KEY_INFO *publicKeyInfo = NULL;
-        ULONG publicKeyInfoLen;
+        ULONG publicKeyInfoLen = 0;
 
         // Decode from DER format to CERT_PUBLIC_KEY_INFO. This has the public key
         // in ASN.1 encoded format called "SubjectPublicKeyInfo" ... szOID_RSA_RSA
@@ -226,7 +226,6 @@ int RSA_importPubKeyFromFile(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): CryptDecodeObjectEx 1.\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_UNSUCCESSFUL;
             goto clean;
@@ -264,7 +263,6 @@ int RSA_importPubKeyFromFile(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): CryptDecodeObjectEx 2.\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_UNSUCCESSFUL;
             goto clean;
@@ -309,10 +307,17 @@ int RSA_importPubKeyFromFile(
 //        status = STATUS_UNSUCCESSFUL;
 //#ifdef ERROR_PRINT
 //        printf("Error (0x%x): Not a RSA public key.\n", status);
-//        PrintCSBackupAPIErrorMessage(status);
 //#endif
 //        goto clean;
 //    }
+    else
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): unknown key type.\n", STATUS_UNSUCCESSFUL);
+#endif
+        status = STATUS_UNSUCCESSFUL;
+        goto clean;
+    }
 
     // Fill header
     //
@@ -404,7 +409,6 @@ int RSA_importPubKeyFromFile(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptImportKeyPair\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -439,10 +443,10 @@ int RSA_exportPubKeyToDER(
     RSAPUBKEY* wc_blob_pubk = NULL;
     
     UCHAR *der_buffer= NULL;
-    ULONG der_buffer_ln;
+    ULONG der_buffer_ln = 0;
 
     CERT_PUBLIC_KEY_INFO *publicKeyInfo = NULL;
-    ULONG publicKeyInfoLen;
+    ULONG publicKeyInfoLen = 0;
     CERT_PUBLIC_KEY_INFO *publicKeyInfo_t = NULL;
 
     status = BCryptExportKey(
@@ -458,7 +462,6 @@ int RSA_exportPubKeyToDER(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptExportKey\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -491,7 +494,6 @@ int RSA_exportPubKeyToDER(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptExportKey\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -573,7 +575,6 @@ int RSA_exportPubKeyToDER(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): CryptEncodeObjectEx 1.\n", GetLastError());
-        PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
         status = STATUS_UNSUCCESSFUL;
         goto clean;
@@ -634,7 +635,6 @@ int RSA_exportPubKeyToDER(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): CryptEncodeObjectEx 3.\n", GetLastError());
-        PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
         status = STATUS_UNSUCCESSFUL;
         goto clean;
@@ -689,7 +689,6 @@ int RSA_exportPubKeyToBLOB(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptExportKey\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -722,7 +721,6 @@ int RSA_exportPubKeyToBLOB(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptExportKey\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -884,7 +882,6 @@ int RSA_importPrivKeyFromFile(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): CryptDecodeObjectEx 1.\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_UNSUCCESSFUL;
             goto clean;
@@ -909,6 +906,14 @@ int RSA_importPrivKeyFromFile(
 //        memcpy(key_bytes, &key_buffer[offset], key_bytes_ln);
 //        //ReverseMemCopy(key_bytes, key_buffer, key_bytes_ln);
 //    }
+    else
+    {
+#ifdef ERROR_PRINT
+        printf("Error (0x%x): unknown key type.\n", STATUS_UNSUCCESSFUL);
+#endif
+        status = STATUS_UNSUCCESSFUL;
+        goto clean;
+    }
 #ifdef DEBUG_PRINT
     printf("key bytes (0x%x):", key_bytes_ln);
     printMemory(key_bytes, key_bytes_ln, 0x10, 0);
@@ -926,7 +931,6 @@ int RSA_importPrivKeyFromFile(
         status = STATUS_UNSUCCESSFUL;
 #ifdef ERROR_PRINT
         printf("Error (0x%x): Not a RSA public key.\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1064,7 +1068,6 @@ int RSA_importPrivKeyFromFile(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptImportKeyPair\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1123,7 +1126,6 @@ int RSA_exportPrivKeyToDER(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptExportKey\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1156,7 +1158,6 @@ int RSA_exportPrivKeyToDER(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptExportKey\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1238,7 +1239,6 @@ int RSA_exportPrivKeyToDER(
 //    {
 //#ifdef ERROR_PRINT
 //        printf("Error (0x%x): CryptEncodeObjectEx 1.\n", GetLastError());
-//        PrintCSBackupAPIErrorMessage(GetLastError());
 //#endif
 //        status = STATUS_UNSUCCESSFUL;
 //        goto clean;
@@ -1301,7 +1301,6 @@ int RSA_exportPrivKeyToDER(
 //    {
 //#ifdef ERROR_PRINT
 //        printf("Error (0x%x): CryptEncodeObjectEx 3.\n", GetLastError());
-//        PrintCSBackupAPIErrorMessage(GetLastError());
 //#endif
 //        status = STATUS_UNSUCCESSFUL;
 //        goto clean;
@@ -1379,7 +1378,6 @@ int RSA_encrypt(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): malloc out buffer\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_NO_MEMORY;
             goto clean;
@@ -1417,7 +1415,6 @@ int RSA_encrypt(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptEncrypt\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1460,7 +1457,6 @@ int RSA_decrypt(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptDecrypt get size\n", status);
-        //PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1476,7 +1472,6 @@ int RSA_decrypt(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): malloc out buffer\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_NO_MEMORY;
             goto clean;
@@ -1514,7 +1509,6 @@ int RSA_decrypt(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptDecrypt\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1580,7 +1574,6 @@ int RSA_signHash(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptSignHash get size\n", status);
-        //PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1595,7 +1588,6 @@ int RSA_signHash(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): malloc out buffer\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_NO_MEMORY;
             goto clean;
@@ -1621,14 +1613,13 @@ int RSA_signHash(
         hash_ln,
         *signature,
         *signature_ln,
-        NULL,
+        &required_size,
         padding
     );
     if ( !NT_SUCCESS(status) )
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptSignHash\n", status);
-        //PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1688,7 +1679,6 @@ int RSA_verifyHash(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptVerifySignature\n", status);
-        //PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1760,7 +1750,6 @@ int RSA_signHash2(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptSignHash get size\n", status);
-        //PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1775,7 +1764,6 @@ int RSA_signHash2(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): malloc out buffer\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_NO_MEMORY;
             goto clean;
@@ -1813,7 +1801,6 @@ int RSA_signHash2(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptSignHash\n", status);
-        //PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1880,7 +1867,6 @@ int RSA_verifyHash2(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptDecrypt get size\n", status);
-        //PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -1896,7 +1882,6 @@ int RSA_verifyHash2(
         {
 #ifdef ERROR_PRINT
             printf("Error (0x%x): malloc out buffer\n", GetLastError());
-            PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_NO_MEMORY;
             goto clean;
@@ -1934,7 +1919,6 @@ int RSA_verifyHash2(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): BCryptDecrypt\n", status);
-        PrintCSBackupAPIErrorMessage(status);
 #endif
         goto clean;
     }
@@ -2070,7 +2054,6 @@ NTSTATUS loadFileBytes(
     {
 #ifdef ERROR_PRINT
         printf("Error (0x%x): malloc key_buffer\n", GetLastError());
-        PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
         status = STATUS_NO_MEMORY;
         goto clean;

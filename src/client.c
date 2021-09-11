@@ -57,6 +57,8 @@ uint8_t buffer[BUFFER_SIZE];
 void printUsage();
 void printHelp();
 bool sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint16_t sd_ln, SOCKET s, uint16_t flags);
+int sendBytes(SOCKET sock, uint8_t* file_buffer, size_t* file_bytes_sent, uint32_t bytes_size, size_t file_size);
+int loadFileIntoBuffer(const char* file_path, PFsKeyHeader kh, uint8_t** buffer, uint32_t* buffer_size, bool is_encrypted);
 int sendDir(const char* dir_path, SOCKET s, uint16_t flags);
 void fileCB(char* file, char* base_name, void* p);
 bool receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader* key_header);
@@ -257,8 +259,6 @@ clean:
 
 bool sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint16_t sd_ln, SOCKET sock, uint16_t flags)
 {
-    FILE* fp = NULL;
-    int bytes_read;
     sendlen_t bytes_sent;
     size_t file_bytes_sent;
 
@@ -272,34 +272,27 @@ bool sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint
     bool ret = true;
     uint32_t buffer_size;
     int errsv;
-    int pc;
     int s;
+    uint32_t i;
+    uint32_t parts;
+    uint32_t rest;
 
     uint8_t* file_buffer = NULL;
 
     uint8_t hash[SHA256_BYTES_LN];
 
     printf("send: %s\n", file_path);
-
-    errno = 0;
-    fp = fopen(file_path, "rb");
-    errsv = errno;
-    if ( fp == NULL )
-    {
-        printf("ERROR (0x%x): Can't open file \"%s\".\n", errsv, file_path);
-        return false;
-    }
     
     memset(&key_header, 0, sizeof(key_header));
     memset(&file_header, 0, sizeof(file_header));
 
-    s = getFileSize(file_path, &file_header.file_size);
-    if ( s != 0 || file_header.file_size == 0 )
-    {
-        printf("INFO: File size is 0!\n");
-        ret = false;
-        goto exit;
-    }
+    //s = getFileSize(file_path, &file_header.file_size);
+    //if ( s != 0 || file_header.file_size == 0 )
+    //{
+    //    printf("INFO: File size is 0!\n");
+    //    ret = false;
+    //    goto exit;
+    //}
 
     if ( flags&FLAG_CHECK_FILE_HASH )
     {
@@ -383,50 +376,65 @@ bool sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint
 #endif
     }
 
-    // allocate file buffer
-    buffer_size = (uint32_t)file_header.file_size + AES_STD_BLOCK_SIZE;
-    file_buffer = (uint8_t*)malloc(buffer_size);
-    if ( file_buffer == NULL )
+    s = loadFileIntoBuffer(file_path, &key_header, &file_buffer, &buffer_size, is_encrypted);
+    if ( s != 0 || file_buffer == NULL )
     {
-        printf("Error (0x%x): malloc file buffer failed\n", getLastError());
         ret = false;
         goto exit;
     }
-    
-    // read entire file into buffer
-    errno = 0;
-    bytes_read = (int) fread(file_buffer, 1, file_header.file_size, fp);
-    errsv = errno;
-    if ( bytes_read == 0 || bytes_read != file_header.file_size )
-    {
-        printf("ERROR (0x%x): Read file bytes failed.\n", errsv);
-        ret = false;
-        goto exit;
-    }
+    //// allocate file buffer
+    //buffer_size = (uint32_t)file_header.file_size + AES_STD_BLOCK_SIZE;
+    //file_buffer = (uint8_t*)malloc(buffer_size);
+    //if ( file_buffer == NULL )
+    //{
+    //    printf("Error (0x%x): malloc file buffer failed\n", getLastError());
+    //    ret = false;
+    //    goto exit;
+    //}
+    //
+    //// read entire file into buffer
+    //errno = 0;
+    //fp = fopen(file_path, "rb");
+    //errsv = errno;
+    //if ( fp == NULL )
+    //{
+    //    printf("ERROR (0x%x): Can't open file \"%s\".\n", errsv, file_path);
+    //    return false;
+    //}
 
-    // encrypt entire file 
-    // done before sending file header, because the result might be greater then file size
-    if ( is_encrypted )
-    {
-        //buffer_size = file_header.file_size + AES_STD_BLOCK_SIZE;
-        buffer_ptr = (uint8_t*)file_buffer;
-        s = encryptData(
-            file_buffer, 
-            (uint32_t)file_header.file_size, 
-            &buffer_ptr, 
-            &buffer_size, 
-            key_header.iv, 
-            AES_IV_SIZE
-        );
-        if ( s != 0 )
-        {
-            printf("\nERROR (0x%x): Encrypting file data failed!\n", s);
-            goto exit;
-        }
+    //errno = 0;
+    //bytes_read = (int) fread(file_buffer, 1, file_header.file_size, fp);
+    //errsv = errno;
+    //if ( bytes_read == 0 || bytes_read != file_header.file_size )
+    //{
+    //    printf("ERROR (0x%x): Read file bytes failed.\n", errsv);
+    //    ret = false;
+    //    goto exit;
+    //}
 
-        // adjust file size
-        file_header.file_size = buffer_size; 
-    }
+    //// encrypt entire file 
+    //// done before sending file header, because the result might be greater then file size
+    //if ( is_encrypted )
+    //{
+    //    //buffer_size = file_header.file_size + AES_STD_BLOCK_SIZE;
+    //    buffer_ptr = (uint8_t*)file_buffer;
+    //    s = encryptData(
+    //        file_buffer, 
+    //        (uint32_t)file_header.file_size, 
+    //        &buffer_ptr, 
+    //        &buffer_size, 
+    //        key_header.iv, 
+    //        AES_IV_SIZE
+    //    );
+    //    if ( s != 0 )
+    //    {
+    //        printf("\nERROR (0x%x): Encrypting file data failed!\n", s);
+    //        goto exit;
+    //    }
+
+    //    // adjust file size
+    //    file_header.file_size = buffer_size; 
+    //}
 
     // fill file header
     s = generateRand(file_header.garbage, AES_IV_SIZE);
@@ -436,6 +444,7 @@ bool sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint
         ret = false;
         goto exit;
     }
+    file_header.file_size = buffer_size;
     file_header.hash_ln = (flags&FLAG_CHECK_FILE_HASH) ? SHA256_BYTES_LN : 0;
     file_header.hash = (flags&FLAG_CHECK_FILE_HASH) ? hash : NULL;
     file_header.base_name_ln = (uint16_t)strlen(base_name);
@@ -513,42 +522,100 @@ bool sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint
 #endif
 
     // send file buffer in blocks of BUFFER_SIZE
+    parts = (uint32_t)(file_header.file_size / BUFFER_SIZE);
+    rest = (uint32_t)(file_header.file_size % BUFFER_SIZE);
     file_bytes_sent = 0;
-    buffer_size = (uint32_t)file_header.file_size;
-    bytes_read = BUFFER_SIZE;
-    while ( file_bytes_sent < buffer_size )
+    for ( i = 0; i < parts; i++ )
     {
-        if ( file_bytes_sent + BUFFER_SIZE > buffer_size )
+        s = sendBytes(sock, file_buffer, &file_bytes_sent, BUFFER_SIZE, file_header.file_size);
+        if ( s != 0 )
         {
-            bytes_read = buffer_size - (uint32_t)file_bytes_sent;
-        }
-
-        errno = 0;
-        bytes_sent = send(sock, (char*)&file_buffer[file_bytes_sent], bytes_read, 0);
-#ifdef DEBUG_PRINT
-        printf("bytes_sent: 0x%x\n", (int)bytes_sent);
-#endif
-        if ( bytes_sent < 0 || bytes_sent != bytes_read )
-        {
-            errsv = getLastSError();
-            printf("ERROR (0x%x): Send file bytes failed.\n", errsv);
             ret = false;
             goto exit;
         }
-
-        file_bytes_sent += bytes_sent;
-
-        pc = (int)((float)file_bytes_sent / (float)buffer_size * 100.0);
-#ifdef DEBUG_PRINT
-        printf("Bytes sent: 0x%zx/0x%x (%d%%).\n", file_bytes_sent, buffer_size, pc);
-#else
-        printf("Bytes sent: 0x%zx/0x%x (%d%%).\r", file_bytes_sent, buffer_size, pc);
-#endif
-
-        // end of file
-        //if ( file_bytes_sent >= buffer_size)
-        //    break;
+//        bytes_sent = send(sock, (char*)&file_buffer[file_bytes_sent], BUFFER_SIZE, 0);
+//        if ( bytes_sent <= 0 || bytes_sent != BUFFER_SIZE )
+//        {
+//#ifdef ERROR_PRINT
+//            printf("ERROR (0x%x): Send file bytes failed.\n", getLastSError());
+//#endif
+//            ret = false;
+//            goto exit;
+//        }
+//
+//        file_bytes_sent += bytes_sent;
+//        pc = (int)((float)file_bytes_sent / (float)file_header.file_size * 100.0);
+//#ifdef DEBUG_PRINT
+//        printf("Bytes sent: 0x%zx/0x%x (%d%%).\n", file_bytes_sent, file_header.file_size, pc);
+//#else
+//        printf("Bytes sent: 0x%zx/0x%x (%d%%).\r", file_bytes_sent, file_header.file_size, pc);
+//#endif
     }
+                
+    if ( rest != 0 )
+    {
+        s = sendBytes(sock, file_buffer, &file_bytes_sent, rest, file_header.file_size);
+        if ( s != 0 )
+        {
+            ret = false;
+            goto exit;
+        }
+//        bytes_sent = send(sock, (char*)&file_buffer[file_bytes_sent], rest, 0);
+//        if ( bytes_sent <= 0 || (uint32_t)bytes_sent != rest )
+//        {
+//#ifdef ERROR_PRINT
+//            printf("ERROR (0x%x): Send file bytes failed.\n", getLastSError());
+//#endif
+//            ret = false;
+//            goto exit;
+//        }
+//
+//        file_bytes_sent += bytes_sent;
+//        pc = (int)((float)file_bytes_sent / (float)file_header.file_size * 100.0);
+//#ifdef DEBUG_PRINT
+//        printf("Bytes sent: 0x%zx/0x%x (%d%%).\n", file_bytes_sent, file_header.file_size, pc);
+//#else
+//        printf("Bytes sent: 0x%zx/0x%x (%d%%).\r", file_bytes_sent, file_header.file_size, pc);
+//#endif
+    }
+
+
+
+//    buffer_size = (uint32_t)file_header.file_size;
+//    bytes_read = BUFFER_SIZE;
+//    while ( file_bytes_sent < buffer_size )
+//    {
+//        if ( file_bytes_sent + BUFFER_SIZE > buffer_size )
+//        {
+//            bytes_read = buffer_size - (uint32_t)file_bytes_sent;
+//        }
+//
+//        errno = 0;
+//        bytes_sent = send(sock, (char*)&file_buffer[file_bytes_sent], bytes_read, 0);
+//#ifdef DEBUG_PRINT
+//        printf("bytes_sent: 0x%x\n", (int)bytes_sent);
+//#endif
+//        if ( bytes_sent <= 0 || bytes_sent != bytes_read )
+//        {
+//            errsv = getLastSError();
+//            printf("ERROR (0x%x): Send file bytes failed.\n", errsv);
+//            ret = false;
+//            goto exit;
+//        }
+//
+//        file_bytes_sent += bytes_sent;
+//
+//        pc = (int)((float)file_bytes_sent / (float)buffer_size * 100.0);
+//#ifdef DEBUG_PRINT
+//        printf("Bytes sent: 0x%zx/0x%x (%d%%).\n", file_bytes_sent, buffer_size, pc);
+//#else
+//        printf("Bytes sent: 0x%zx/0x%x (%d%%).\r", file_bytes_sent, buffer_size, pc);
+//#endif
+//
+//        // end of file
+//        //if ( file_bytes_sent >= buffer_size)
+//        //    break;
+//    }
 #ifdef DEBUG_PRINT
     printf("file finished\n");
 #endif
@@ -563,7 +630,7 @@ bool sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint
 
 exit:
     printf("\n\n");
-    fclose(fp);
+    //fclose(fp);
     if ( file_buffer != NULL )
         free(file_buffer);
     file_buffer = NULL;
@@ -571,6 +638,108 @@ exit:
     delete_AESKey();
 
     return ret;
+}
+
+int sendBytes(SOCKET sock, uint8_t* file_buffer, size_t* file_bytes_sent, uint32_t bytes_size, size_t file_size)
+{
+    sendlen_t bytes_sent;
+    int pc;
+
+    bytes_sent = send(sock, (char*)&file_buffer[*file_bytes_sent], bytes_size, 0);
+    if ( bytes_sent <= 0 || (uint32_t)bytes_sent != bytes_size )
+    {
+#ifdef ERROR_PRINT
+        printf("ERROR (0x%x): Send file bytes failed.\n", getLastSError());
+#endif
+        return -1;
+    }
+
+    *file_bytes_sent += bytes_sent;
+    pc = (int)((float)(*file_bytes_sent) / (float)file_size * 100.0);
+#ifdef DEBUG_PRINT
+    printf("Bytes sent: 0x%zx/0x%zx (%u%%).\n", *file_bytes_sent, file_size, pc);
+#else
+    printf("Bytes sent: 0x%zx/0x%zx (%u%%).\r", *file_bytes_sent, file_size, pc);
+#endif
+
+    return 0;
+}
+
+int loadFileIntoBuffer(const char* file_path, PFsKeyHeader kh, uint8_t** file_buffer, uint32_t* buffer_size, bool is_encrypted)
+{
+    FILE* fp = NULL;
+    int errsv;
+    size_t bytes_read;
+    int s = 0;
+    size_t file_size = 0;
+    
+    s = getFileSize(file_path, &file_size);
+    if ( s != 0 )
+    {
+        printf("ERROR (0x%x): Get file size of \"%s\" failed.\n", s, file_path);
+        goto clean;
+    }
+
+    // allocate file file_buffer
+    *buffer_size = (uint32_t)file_size;
+    if ( is_encrypted )
+        *buffer_size += AES_STD_BLOCK_SIZE;
+
+    *file_buffer = (uint8_t*)malloc(*buffer_size);
+    if ( *file_buffer == NULL )
+    {
+        printf("Error (0x%x): malloc file file_buffer failed\n", getLastError());
+        s = -1;
+        goto clean;
+    }
+    
+    // read entire file into file_buffer
+    errno = 0;
+    fp = fopen(file_path, "rb");
+    errsv = errno;
+    if ( fp == NULL )
+    {
+        printf("ERROR (0x%x): Can't open file \"%s\".\n", errsv, file_path);
+        s = -2;
+        goto clean;
+    }
+
+    errno = 0;
+    bytes_read = (int) fread(*file_buffer, 1, (uint32_t)file_size, fp);
+    errsv = errno;
+    if ( bytes_read == 0 || bytes_read != (uint32_t)file_size )
+    {
+        printf("ERROR (0x%x): Read file bytes failed.\n", errsv);
+        s = -3;
+        goto clean;
+    }
+
+    // encrypt entire file 
+    // done before sending file header, because the result might be greater then file size
+    if ( is_encrypted )
+    {
+        //buffer_size = *buffer_size + AES_STD_BLOCK_SIZE;
+        s = encryptData(
+            *file_buffer, 
+            (uint32_t)file_size, 
+            file_buffer, 
+            buffer_size, 
+            kh->iv, 
+            AES_IV_SIZE
+        );
+        if ( s != 0 )
+        {
+            printf("\nERROR (0x%x): Encrypting file data failed!\n", s);
+            s = -4;
+            goto clean;
+        }
+    }
+
+clean:
+    if ( fp )
+        fclose(fp);
+
+    return s;
 }
 
 int sendDir(const char* dir_path, SOCKET sock, uint16_t flags)

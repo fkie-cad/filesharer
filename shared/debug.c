@@ -1,6 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "debug.h"
+//#ifdef _WIN32
+//#include "winErrPrint.h"
+//#endif
 
 void printMemory(
     void* mem, 

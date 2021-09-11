@@ -40,7 +40,7 @@
 
 #define FLAG_DECRYPT (0x8)
 
-#define DATA_STATE_NONE (0x1)
+#define DATA_STATE_NONE (0x0)
 #define DATA_STATE_KEY_HEADER (0x1)
 #define DATA_STATE_FILE_HEADER (0x2)
 #define DATA_STATE_FILE_DATA (0x3)
@@ -163,6 +163,7 @@ int __cdecl main(int argc, char* argv[])
     int start_i = 3;
 
     printf("%s - %s\n\n", APP_NAME, APP_VERSION);
+    printf("Compiled: %s -- %s\n\n", __DATE__, __TIME__);
 
     if ( isAskForHelp(argc, argv) )
     {
