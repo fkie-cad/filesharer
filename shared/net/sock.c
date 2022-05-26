@@ -71,7 +71,7 @@ int connectSock(
     s = connect(sock , addr_info->ai_addr, (int)addr_info->ai_addrlen);
     if ( s < 0)
     {
-#ifdef ERROR_PRINT
+#if defined(ERROR_PRINT) && defined(_WIN32)
         s = getLastSError();
         if ( s == WSAESHUTDOWN )
             printf("ERROR (0x%x): WSAESHUTDOWN.\n", s);

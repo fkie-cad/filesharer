@@ -87,7 +87,7 @@ int AES_encrypt(
 {
     int status = 0;
     int len = 0;
-    uint32_t req_size = plain_ln + AES_STD_BLOCK_SIZE;
+    uint32_t req_size = GET_ENC_AES_SIZE(plain_ln);
 
     if ( ctxt->key_ln != EVP_CIPHER_key_length((*block_cipher)()) )
     {
@@ -155,7 +155,9 @@ int AES_encrypt(
     status = EVP_EncryptUpdate(ctxt->ctx, *encrypted, &len, plain, (int)plain_ln);
     if ( status != 1 )
     {
+#ifdef ERROR_PRINT
         printf("ERROR (0x%lx): EVP_EncryptUpdate failed.\n", ERR_get_error());
+#endif
         status = -4;
         goto clean;
     }
@@ -168,7 +170,9 @@ int AES_encrypt(
     status = EVP_EncryptFinal_ex(ctxt->ctx, *encrypted + len, &len);
     if ( status != 1 )
     {
+#ifdef ERROR_PRINT
         printf("ERROR (0x%lx): EVP_EncryptFinal_ex failed.\n", ERR_get_error());
+#endif
         status = -5;
         goto clean;
     }
@@ -197,14 +201,18 @@ int AES_decrypt(
 
     if ( ctxt->key_ln != EVP_CIPHER_key_length((*block_cipher)()) )
     {
+#ifdef ERROR_PRINT
         printf("ERROR: AES key is too small!\n");
+#endif
         status = -1;
         goto clean;
     }
 
     if ( iv_ln != EVP_CIPHER_iv_length((*block_cipher)()) )
     {
+#ifdef ERROR_PRINT
         printf("ERROR: IV is too small!\n");
+#endif
         status = -1;
         goto clean;
     }
@@ -212,7 +220,9 @@ int AES_decrypt(
     status = EVP_DecryptInit_ex(ctxt->ctx, (*block_cipher)(), NULL, ctxt->key, iv);
     if( status != 1 )
     {
+#ifdef ERROR_PRINT
         printf("ERROR (0x%lx): EVP_EncryptFinal_ex failed.\n", ERR_get_error());
+#endif
         status = -2;
         goto clean;
     }
@@ -223,7 +233,7 @@ int AES_decrypt(
         if ( *plain == NULL )
         {
 #ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", errno);
+            printf("ERROR (0x%x): malloc out buffer\n", errno);
 #endif
             status = -1;
             goto clean;
@@ -234,7 +244,7 @@ int AES_decrypt(
 //        if ( req_size > *encrypted_ln )
 //        {
 //#ifdef ERROR_PRINT
-//            printf("Error: Provided encryption buffer[0x%x] is too small! 0x%x needed.\n", *encrypted_ln, size);
+//            printf("ERROR: Provided encryption buffer[0x%x] is too small! 0x%x needed.\n", *encrypted_ln, size);
 //#endif
 //            status = -1;
 //            goto clean;
@@ -244,7 +254,9 @@ int AES_decrypt(
     status = EVP_DecryptUpdate(ctxt->ctx, *plain, &len, encrypted, (int)encrypted_ln);
     if ( status != 1 )
     {
+#ifdef ERROR_PRINT
         printf("ERROR (0x%lx): EVP_DecryptUpdate failed.\n", ERR_get_error());
+#endif
         status = -3;
         goto clean;
     }
@@ -255,7 +267,9 @@ int AES_decrypt(
     status = EVP_DecryptFinal_ex(ctxt->ctx, *plain + len, &len);
     if ( status != 1 )
     {
+#ifdef ERROR_PRINT
         printf("ERROR (0x%lx): EVP_DecryptFinal_ex failed.\n", ERR_get_error());
+#endif
         status = -4;
         goto clean;
     }

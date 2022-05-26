@@ -97,15 +97,6 @@ int __cdecl runServer(
 );
 
 
-//char file_path[MAX_PATH];
-//char base_name[BASE_NAME_MAX_SIZE];
-//char sub_dir[BASE_NAME_MAX_SIZE];
-//uint8_t gBuffer[BUFFER_SIZE];
-//
-//int running = 0;
-
-
-
 int __cdecl main(int argc, char* argv[])
 {
     bool s = 0;
@@ -123,7 +114,7 @@ int __cdecl main(int argc, char* argv[])
     char* key_path = NULL;
     char full_key_path[MAX_PATH];
 
-    uint32_t block_size = 0;
+    uint32_t block_size = STD_BLOCK_SIZE;
 
     int start_i = 1;
 
@@ -161,7 +152,8 @@ int __cdecl main(int argc, char* argv[])
     DPrint("family: %s\n", family==AF_INET?"AF_INET":(family==AF_INET6)?"AF_INET6":"NONE");
     DPrint("key_path: %s\n", key_path);
     DPrint("flags: 0x%x\n", flags);
-    
+    DPrint("start_i: 0x%x\n", start_i);
+
 
     memset(full_key_path, 0, MAX_PATH);
     if ( key_path != NULL )
@@ -193,6 +185,7 @@ int __cdecl main(int argc, char* argv[])
     s = initConnection(&addr_info, family, ip, port, &sock, (flags&FLAG_SERVER)?AI_PASSIVE:0);
     if ( s != 0 )
     {
+        EPrint(s, "initConnection failed.\n");
         goto clean;
     }
     
@@ -437,18 +430,20 @@ void printHelp()
     printf(" - %ck: Path to an SSL key.%s file to encrypt or decrypt data. "
            "The server has to use the private key, the client the public key.\n", 
            PARAM_IDENTIFIER, key_type);
+    printf("\n");
     printf("Server only options:\n");
     printf(" - path: The existing target base directory, the shared files are stored in.\n");
+    printf("\n");
     printf("Client only options:\n");
     printf(" - %cc : Check file hashes of transmitted files. Set by default, if transferred encrypted.\n", PARAM_IDENTIFIER);
     printf(" - %cr : Copy dirs recursively.\n", PARAM_IDENTIFIER);
     printf(" - %cf : Flatten copied dirs to base dir. "
-           "Only meaningful if /r is set.\n", 
+           "Only meaningful if /r is set.\n",
            PARAM_IDENTIFIER);
     printf(" - %cs : Maximum size of encrypted chunk. "
            "Has to be greater than 0x1000 and less than 0xFFFFFFFF. "
-           "Defaults to 0x%x.\n", 
-           PARAM_IDENTIFIER, (PAGE_SIZE<<0x8));
+           "Defaults to 0x%x.\n",
+           PARAM_IDENTIFIER, STD_BLOCK_SIZE);
     printf(" - path : One or more paths to files or directories to be sent.\n");
     printf("\n");
     printf("Examples:\n");

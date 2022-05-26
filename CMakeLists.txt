@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Filesharer VERSION 1.3.15 DESCRIPTION "A file share client server." LANGUAGES C)
+project(Filesharer VERSION 1.4.0 DESCRIPTION "A file share client server." LANGUAGES C)
 
 
 if (WIN32)
@@ -46,8 +46,7 @@ message("CMAKE_EXE_LINKER_FLAGS : ${CMAKE_EXE_LINKER_FLAGS}")
 include_directories("shared")
 
 include(cmake.inc/Libs.cmake)
-include(cmake.inc/FsClient.cmake)
-include(cmake.inc/FsServer.cmake)
+include(cmake.inc/FShare.cmake)
 
 
 

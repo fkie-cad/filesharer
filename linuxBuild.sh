@@ -1,8 +1,8 @@
 #!/bin/bash
 
-name=fileshare
-def_target=all
-pos_targets="${def_target}|FsServer|FsClient|clean"
+name=FShare
+def_target=app
+pos_targets="${def_target}|cln"
 target=${def_target}
 def_mode=Release
 mode=${def_mode}
@@ -10,17 +10,26 @@ help=0
 vb=0
 dp=0
 
+
 # Clean build directory from meta files
-#
+# or all files
+
 # @param $1 build directory
+# @param $2 flag: 1= all files
 function clean() {
     local dir=$1
+    local flag=$2
 
     if [[ ${dir} == "${ROOT}" ]]; then
         return
     fi
 
     cd ${dir} || return 1
+
+    if [[ ${flag} == "1" ]]; then
+        rm -r ./*
+        return
+    fi
 
     rm -r ./CMakeFiles
     rm -r ./CTestTestfile.cmake
@@ -76,11 +85,7 @@ function buildPackage()
     local vb=$4
     local dp=$5
 
-    if ! buildTarget FsServer ${dir} ${mode} ${vb} ${dp}; then
-        return 1
-    fi
-
-    if ! buildTarget FsClient ${dir} ${mode} ${vb} ${dp}; then
+    if ! buildTarget ${name} ${dir} ${mode} ${vb} ${dp}; then
         return 1
     fi
 
@@ -92,8 +97,8 @@ function buildPackage()
 }
 
 function printUsage() {
-    echo "Usage: $0 [-t=${pos_targets}] [-m=Debug|Release] [-h]"
-    echo "Default: $0 [-t=${def_target}] [-m=${def_mode}]"
+    echo "Usage: $0 [-t ${pos_targets}] [-m Debug|Release] [-h]"
+    echo "Default: $0 [-t ${def_target}] [-m ${def_mode}]"
     return 0;
 }
 
@@ -102,6 +107,7 @@ function printHelp() {
     echo ""
     echo "-t A possible target: ${pos_targets}"
     echo "-m A compile mode: Release|Debug"
+    echo "-p Turn on debug printing"
     echo "-h Print this."
     return 0;
 }
@@ -148,11 +154,17 @@ echo "target: "${target}
 echo "mode: "${mode}
 echo "build_dir: "${build_dir}
 
-if [[ ${target} == "clean" || ${target} == "Clean" ]]; then
-    clean ${build_dir}
+if [[ ${target} == "cln" || ${target} == "clean" || ${target} == "Clean" ]]; then
+    clean ${build_dir} 0
     exit $?
-elif [[ ${target} == $all ]]; then
+elif [[ ${target} == "clr" ]]; then
+    clean ${build_dir} 1
+    exit $?
+elif [[ ${target} == "pck" ]]; then
     buildPackage ${name} ${release_build_dir} Release ${vb} ${dp}
+    exit $?
+elif [[ ${target} == "app" ]]; then
+    buildTarget ${name} ${build_dir} ${mode} ${vb} ${dp}
     exit $?
 else
     buildTarget ${target} ${build_dir} ${mode} ${vb} ${dp}

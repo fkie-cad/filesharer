@@ -116,224 +116,13 @@ int handleData(
 
 
 
-char file_path[MAX_PATH];
-char base_name[BASE_NAME_MAX_SIZE];
-char sub_dir[BASE_NAME_MAX_SIZE];
-uint8_t gBuffer[BUFFER_SIZE];
+static char file_path[MAX_PATH];
+static char base_name[BASE_NAME_MAX_SIZE];
+static char sub_dir[BASE_NAME_MAX_SIZE];
+static uint8_t gBuffer[BUFFER_SIZE];
 
-int running = 0;
+static int running = 0;
 
-//bool parseParams(
-//    int argc, 
-//    char** argv, 
-//    uint16_t* flags, 
-//    ADDRESS_FAMILY* family, 
-//    char** key_path, 
-//    int start_i
-//)
-//{
-//    int i;
-//    char* arg;
-//    char* val;
-//    int ipv;
-//    bool s = true;
-//
-//    for ( i = start_i; i < argc; i++ )
-//    {
-//        arg = argv[i];
-//        val = ( i < argc - 1 ) ? argv[i+1] : NULL;
-//
-//        if ( ( arg[0] == LIN_PARAM_IDENTIFIER || arg[0] == WIN_PARAM_IDENTIFIER ) && arg[1] != 0 && arg[2] == 0 )
-//        {
-//            if ( arg[1] == 'k' )
-//            {
-//                if ( val == NULL )
-//                    break;
-//
-//                *key_path = val;
-//                *flags |= FLAG_DECRYPT;
-//                i++;
-//            }
-//            else if ( arg[1] == 'i' )
-//            {
-//                if ( val == NULL )
-//                    break;
-//
-//                ipv = (int)strtoul(val, NULL, 0);
-//                if ( ipv == 4 )
-//                {
-//                    *family = AF_INET;
-//                }
-//                else if ( ipv == 6 )
-//                {
-//                    *family = AF_INET6;
-//                }
-//                i++;
-//            }
-//        }
-//        else
-//        {
-//            break;
-//        }
-//    }
-//
-//    return s;
-//}
-
-//int __cdecl main(int argc, char* argv[])
-//{
-//    int r;
-//    bool s = 0;
-//    int le;
-//    uint16_t flags = 0;
-//
-//    SOCKET listenSocket = INVALID_SOCKET;
-//    
-//    char *Address = NULL;
-//    ADDRESS_FAMILY family = AF_INET;
-//    struct addrinfo *addr_info = NULL;
-//
-//    char *port_str = NULL;
-//    char *rec_dir = NULL;
-//    char full_path[MAX_PATH];
-//    char* key_path = NULL;
-//    char full_key_path[MAX_PATH];
-//    int start_i = 3;
-//
-//    printf("%s - %s\n\n", APP_NAME, APP_VERSION);
-//    printf("Compiled: %s -- %s\n\n", __DATE__, __TIME__);
-//
-//    if ( isAskForHelp(argc, argv) )
-//    {
-//        printHelp();
-//        return 0;
-//    }
-//
-//    if ( argc < start_i )
-//    {
-//        printUsage();
-//        return 0;
-//    }
-//
-//    port_str = argv[1];
-//    rec_dir = argv[2];
-//    if (strnlen(rec_dir, MAX_PATH) >= MAX_PATH)
-//        rec_dir[MAX_PATH - 1] = 0;
-//
-//    s = parseParams(argc, argv, &flags, &family, &key_path, start_i);
-//    if ( !s )
-//    {
-//        printUsage();
-//        return -1;
-//    }
-//    
-//    DPrint("port: %s\n", port_str);
-//    DPrint("family: %s\n", family==AF_INET?"AF_INET":(family==AF_INET6)?"AF_INET6":"NONE");
-//    DPrint("key_path: %s\n", key_path);
-//    DPrint("rec_dir: %s\n", rec_dir);
-//
-//    memset(full_key_path, 0, MAX_PATH);
-//    if ( key_path != NULL )
-//    {
-//        s = (int)getFullPathName(key_path, MAX_PATH, full_key_path, NULL);
-//        if ( !s )
-//        {
-//            EPrint(-1, "Key file \"%s\" not found!", key_path);
-//            return -1;
-//        }
-//        s = checkPath(full_key_path, false);
-//        if ( !s )
-//        {
-//            EPrint(-1, "Key file \"%s\" not found!", full_key_path);
-//            return -1;
-//        }
-//    }
-//
-//    memset(full_path, 0, MAX_PATH);
-//    s = (int)getFullPathName(rec_dir, MAX_PATH, full_path, NULL);
-//    if ( !s )
-//    {
-//        EPrint(-1, "Directory \"%s\" not found!", full_path);
-//        return 0;
-//    }
-//    s = checkPath(full_path, true);
-//    if (!s)
-//    {
-//        EPrint(-1, "Directory \"%s\" not found!", full_path);
-//        return 0;
-//    }
-//    cropTrailingSlash(full_path);
-//    printf("target dir: %s\n\n", full_path);
-//    
-//    s = initConnection(&addr_info, family, Address, port_str, &listenSocket, AI_PASSIVE);
-//    if ( s != 0 )
-//    {
-//        goto clean;
-//    }
-//    
-////    int iOptval = 1;
-////    s = setsockopt(listenSocket, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (char*)&iOptval, sizeof(iOptval));
-////    if ( s == SOCKET_ERROR)
-////    {
-////        printf("ERROR (0x%x): setsockopt for SO_EXCLUSIVEADDRUSE failed.\n", WSAGetLastError());
-////        return -1;
-////    }
-//
-//    // Setup the TCP listening socket
-//    errno = 0;
-//    r = bind(listenSocket, addr_info->ai_addr, (int)addr_info->ai_addrlen);
-//    if ( r == SOCKET_ERROR )
-//    {
-//        le = getLastSError();
-//        EPrint(le, "bind failed with\n");
-//        s = le;
-//        goto clean;
-//    }
-//    DPrint("socket bound\n");
-//
-//    freeaddrinfo(addr_info);
-//    addr_info = NULL;
-//
-//    errno = 0;
-//    r = listen(listenSocket, 1);
-//    if ( r == SOCKET_ERROR )
-//    {
-//        le = getLastSError();
-//        EPrint(le, "listen failed\n");
-//        s = le;
-//        goto clean;
-//    }
-//    DPrint("listening\n");
-//    
-//    if ( flags&FLAG_DECRYPT )
-//    {
-//        DPrint("Init Crypto\n");
-//        s = c_init(full_key_path, INIT_PRIV_KEY);
-//        if ( s != 0 )
-//        {
-//            s = -4;
-//            EPrint(s, "Initializing crypto failed.");
-//            goto clean;
-//        }
-//    }
-//    
-//    // enter accept loop
-//    running = 1;
-//    while ( running )
-//    {
-//        handleConnection(listenSocket, full_path, flags);
-//        printf("\n\n");
-//    }
-//
-//clean:
-//    if ( addr_info != NULL )
-//        freeaddrinfo(addr_info);
-//    cleanUp(&listenSocket);
-//    if ( flags&FLAG_DECRYPT )
-//        c_clean();
-//
-//    return s;
-//}
 
 int __cdecl runServer(
     int argc, 
@@ -391,7 +180,7 @@ int __cdecl runServer(
     if ( s == SOCKET_ERROR )
     {
         s = getLastSError();
-        EPrint(s, "bind failed with\n");
+        EPrint(s, "bind failed!\n");
         goto clean;
     }
     DPrint("socket bound\n");
@@ -797,13 +586,16 @@ int handleData(
         if ( *file_bytes_received == *data_full_size )
         {
             DPrint("File fully received.\n");
-            DPrint("Sending answer.\n");
-            // send file-fully-received answer
-            errsv = sendAnswer(2, FS_PACKET_SUCCESS, *file_bytes_received, ClientSocket, is_encrypted, key_header);
-            if ( errsv != 0 )
-            {
-                goto clean;
-            }
+
+            // does not work, if block answer is sent without intermediate wait for other sides's response,
+            // because the two answers (block answer, and fully-received answer) might be buffered and sent at once.
+//            DPrint("Sending answer.\n");
+//            // send file-fully-received answer
+//            errsv = sendAnswer(2, FS_PACKET_SUCCESS, *file_bytes_received, ClientSocket, is_encrypted, key_header);
+//            if ( errsv != 0 )
+//            {
+//                goto clean;
+//            }
             printf("\n");
             printf("File received successfully\n");
             

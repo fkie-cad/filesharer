@@ -1,10 +1,12 @@
-set(CLIENT FsClient)
+set(APP FShare)
 
-add_executable(${CLIENT}
+add_executable(${APP}
     ""
     )
-target_sources(${CLIENT} PRIVATE
+target_sources(${APP} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/fshare.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/server.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/FsHeader.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/collections/Fifo.c
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/crypto/linux/HasherOpenSSL.c
@@ -17,9 +19,9 @@ target_sources(${CLIENT} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/net/sock.c
 )
 if (DEBUG_PRINT)
-    target_sources(${CLIENT} PRIVATE
+    target_sources(${APP} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/shared/debug.c
-    )
+        )
 endif()
 
-target_link_libraries(${CLIENT} PRIVATE OpenSSL::Crypto)
+target_link_libraries(${APP} PRIVATE OpenSSL::Crypto)

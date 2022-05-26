@@ -2,6 +2,7 @@
 #define SHARED_VALUES_H
 
 #define BUFFER_SIZE (PAGE_SIZE)
+#define STD_BLOCK_SIZE (PAGE_SIZE<<8)
 
 #define AES_SECRET_SIZE (0x20)
 

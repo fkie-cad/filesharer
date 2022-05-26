@@ -23,9 +23,6 @@
 #ifdef DEBUG_PRINT
 #include "debug.h"
 #endif
-//#include "values.h"
-//#include "version.h"
-//#include "args.h"
 #if defined(_WIN32)
 #include "files/filesW.h"
 #include "crypto/windows/HasherCNG.h"
@@ -48,16 +45,9 @@ typedef struct _FCBParams {
 
 #define APP_NAME "FsClient"
 
-//#define FLAG_CHECK_FILE_HASH (0x1)
-//#define FLAG_RECURSIVE (0x2)
-//#define FLAG_FLAT_COPY (0x4)
-//#define FLAG_ENCRYPT (0x8)
 
-//#define IS_ENCRYPTED (_f_) { (_f_&FLAG_ENCRYPT)}
-
-//char full_path[MAX_PATH];
-uint8_t gBuffer[BUFFER_SIZE];
-uint32_t enc_block_buffer_size = PAGE_SIZE << 8; // has to be \in [PAGE_SIZE, ULONG_MAX]
+static uint8_t gBuffer[BUFFER_SIZE];
+static uint32_t enc_block_buffer_size = STD_BLOCK_SIZE; // has to be \in [PAGE_SIZE, ULONG_MAX]
 
 
 
@@ -121,7 +111,7 @@ int runClient(
 )
 {
     bool s = 0;
-    //int errsv;
+    bool cb = 0;
 
     int nr_of_files;
     int i;
@@ -149,7 +139,7 @@ int runClient(
 
     if ( enc_block_buffer_size > UINT32_MAX )
     {
-        enc_block_buffer_size = BUFFER_SIZE<<0x8;
+        enc_block_buffer_size = STD_BLOCK_SIZE;
         printf("Block size too big! Setting to 0x%x!\n", enc_block_buffer_size);
     }
 
@@ -178,8 +168,8 @@ int runClient(
             argv[i][MAX_PATH - 1] = 0;
         
         memset(path, 0, MAX_PATH);
-        s = (int)getFullPathName(argv[i], MAX_PATH, path, &base_name);
-        if ( !s )
+        cb = (int)getFullPathName(argv[i], MAX_PATH, path, &base_name);
+        if ( !cb )
         {
             s = getLastError();
             EPrint(s, "Get full path failed.\n");
@@ -379,8 +369,6 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     printf("header (0x%x):                \n", header_size);
     printFsFileHeader(&file_header, " - ");
     
-    DPrint(" - &file_path[%u]: %.*s (%u)\n", sd_id, sd_ln, &file_path[sd_id], sd_ln);
-    
     // encrypt file header
     if ( is_encrypted )
     {
@@ -522,10 +510,12 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     }
     if ( enc_rest > 0 )
     {
+        DPrint("rest\n");
+        DPrint("file_offset: 0x%zx\n", file_offset);
+
         s = loadBlockIntoBuffer(file, file_offset, file_buffer, enc_rest, (uint32_t)buffer_size, key_header.iv, is_encrypted, enc_part_i);
         if ( s != 0 )
         {
-            //s = -3;
             goto exit;
         }
 
@@ -563,14 +553,17 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
             goto exit;
         }
     }
-    
-    // wait for file-fully-received answer
-    DPrint("waiting for fully received answer.\n");
-    s = receiveAnswer(&answer, sock, is_encrypted, &key_header);
-    if ( s != 0 )
-    {
-        goto exit;
-    }
+
+
+    // does not work, if block answer is sent without intermediate wait for other sides's response,
+    // because the two answers (block answer, and fully-received answer) might be buffered and sent at once.
+//    // wait for file-fully-received answer
+//    DPrint("waiting for fully received answer.\n");
+//    s = receiveAnswer(&answer, sock, is_encrypted, &key_header);
+//    if ( s != 0 )
+//    {
+//        goto exit;
+//    }
 
     //GetSystemTime(&time);
     //printf("\ntime: %02u:%02u:%02u:%03u\n", time.wHour, time.wMinute, time.wSecond, time.wMilliseconds);

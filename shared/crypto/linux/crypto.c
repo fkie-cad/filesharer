@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "../../../src/FsHeader.h"
+#include "../../numbers.h"
 
 static RSA_CTXT rsa_ctxt;
 static AES_CTXT aes_ctxt;
@@ -326,12 +327,16 @@ int rotate64Iv(uint8_t* iv, uint32_t id)
 {
     int s = 0;
 
-    int shift = id % 64; // 0 - 63
-    uint32_t part = id / 64; // 0 - x
-    part = part % (AES_IV_SIZE / 0x8); // 0 - 1
-    uint64_t* ptr = (uint64_t*)iv;
+    uint32_t i;
+    uint8_t rot;
 
-    ptr[part] = _rotl64(ptr[part], shift);
+    for ( i = 0; i < 0x10; i++ )
+    {
+        rot = id % 0x8;
+        iv[i] = rotl8(iv[i], rot);
+
+        id = id >> 0x3;
+    }
 
     return s;
 }

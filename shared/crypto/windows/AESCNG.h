@@ -10,6 +10,8 @@
 #define AES_STD_BLOCK_SIZE (0x10)
 #define AES_IV_SIZE AES_STD_BLOCK_SIZE
 
+#define GET_ENC_AES_SIZE(__ds__) ( __ds__ + ( AES_STD_BLOCK_SIZE - ( __ds__ % AES_STD_BLOCK_SIZE ) ) )
+
 
 typedef struct _AES_CTXT {
     BCRYPT_ALG_HANDLE alg;

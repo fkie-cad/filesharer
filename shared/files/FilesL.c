@@ -8,6 +8,7 @@
 #include <dirent.h>
 
 #include "debug.h"
+#include "print.h"
 #include "FilesL.h"
 #include "collections/Fifo.h"
 
@@ -84,9 +85,9 @@ int actOnFilesInDir(const char* path, FileCallback cb, const char** types, uint3
             {
                 snprintf(ent_path, PATH_MAX, "%s/%s", act_path, ent->d_name);
                 ent_path[MAX_PATH-1] = 0;
-                debug_info(" - - dir: %s\n", ent_path);
+                DPrint(" - - dir: %s\n", ent_path);
                 s = (int)Fifo_push(&directories, ent_path, strlen(ent_path)+1);
-                debug_info(" - - fifo size: %u\n", s);
+                DPrint(" - - fifo size: %u\n", s);
                 if (s == 0)
                 {
                     printf("Fifo push error!\n");
