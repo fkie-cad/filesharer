@@ -1,18 +1,22 @@
 # TCP Fileshare client and server
 Cross Os (Linux/Windows) Fileshare client and server.  
 
-Currently, working just one-way and not bidirectional.
-
 Encryption is supported, but still in experimental state.
 
 Warning: 
 This tool at some stages has been flagged as a positive threat by Windows Defender for unknown reasons. 
-To prevent this, drop this tool in an "exclusion" folder.
+If this happens, drop this tool in an "exclusion" folder.
+
+Compiles and runs under
+- Linux 
+- Windows (x86/x64)  
+- OsX may work too
+- Android in Termux
 
 
 ## Version ##
-1.3.15  
-Last changed: 11.09.2021
+1.4.0  
+Last changed: 25.05.2022
 
 
 ## Requirements
@@ -23,104 +27,106 @@ Last changed: 11.09.2021
 
 ### Windows ###
 - msbuild 
-- [WDK]
-
-**Remarks**  
-The .vcxproj file is using `WindowsApplicationForDrivers10.0` as the `PlatformToolset`, which leads to smaller builds. 
-If the WDK is not installed, the `PlatformToolset` may be changed to `v142` and it should compile without errors.
 
 
 ## Build
 
-### Windows msbuild in normal cmd
+### Windows msbuild in normal or developer cmd
+
 ```bash
-$ winBuild.bat [/t all|server|client] [/b 32|64] [/m Debug|Release] [/mt no|Release|Debug]  [/?]
+$ winBuild.bat [/app] [/m <Release|Debug>] [/b <32|64>] [/rtl] [/pdb] [/bt <path>] [/pts <PlatformToolset>] [/h]
 ```
 
-### Windows msbuild in developer cmd
-```bash
-$devcmd> msbuild [server.vcxproj|client.vcxproj] [/p:Platform=x86|x64] [/p:Configuration=Debug|Release] [/p:RunTimeLib=Debug|Release]
-```
+The PlatformToolset defaults to "v142but may be changed with the `/pts` option.
+"v142" is used for VS 2019 version, "v143" would be used in VS 2022, 
+or you could also use "WindowsApplicationForDrivers10.0" with WDK10 installed.
+
+### Runtime Errors (Windows)
+If a "VCRUNTIMExxx.dll not found Error" occurs on the target system, statically including the runtime libraries is a solution.  
+This is done by using the `/p:RunTimeLib=Debug|Release` (msbuild) or `[/rtl]` (winBuild) flags.
+
 
 ### Linux gcc + cmake 
 ```bash
-$ ./linuxBuild.sh [-t all|server|client] [-m Debug|Release] [-h]
+$ ./linuxBuild.sh [-t app] [-m Debug|Release] [-h]
 ```
 
 ### Linux gcc plain
 ```bash
 $ mkdir build
-$ gcc -o build/FsClient -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lcrypto src/client.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
-$ gcc -o build/FsServer -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lcrypto src/server.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
+$ gcc -o build/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lcrypto src/fshare.c src/client.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
 ```
 Use `clang` instead of `gcc` in Termux on Android.
 
-## Run
-### Server
-**Usage:**
+## Usage
 ```bash
-$ server port dir [-i 4|6] [-k path/to/priv.key]
-```
-**Options:**
- - port:uint16 : The listening port number of the server.
- - dir:string : A directory to store the files in. 
- - -i : IP version 4 (default) or 6. 
- - -k : Path to an (unencrypted) private RSA key (Windows: .der, Linux: .pem) file to decrypt encrypted data from the client. 
- 
-**Example:**
-plain
-```bash
-$ server 8080 %tmp%
-```
-encrypted
-```bash
-$ server 8080 %tmp% -k dir\key.der
+Usage: FShare -m <mode> [-i <ip>] -p <port> [-v <version>] [-k <path>] [-c] [-r] [-f] [-s <size>] path [...]
 ```
 
-### Client
-**Usage:**
+**Options**
+- -m: Share mode: 
+      receiving server (s) or sending client (c).
+- -i: The server ip. 
+      Not necessary in server mode.
+- -p: The server listening port.
+- -v: IP version 4 (default) or 6.
+- -k: Path to an SSL key file to encrypt or decrypt data.
+      The server has to use the private key, the client the public key.
+**Server only options:**
+- path: The existing target base directory, the shared files are stored in.
+**Client only options:**
+- -c : Check file hashes of transmitted files. 
+       Set by default, if transferred encrypted.
+- -r : Copy dirs recursively.
+- -f : Flatten copied dirs to base dir. 
+       Only meaningful if /r is set.
+- -s : Maximum size of encrypted chunk. 
+       Has to be greater than 0x1000 and less than 0xFFFFFFFF.
+       Defaults to 0x100000.
+- path : One or more paths to files or directories to be sent.
+    
+
+## Examples:
+Run plain server with ipv4 and save files in "files/"
 ```bash
-$ client ip port [-c] [-r] [-f] [-i 4] [-k path/to/pub.key] path [an/other/path ...]
-```
-**Options:**
- - ip:string : Dotted ip address of the server.
- - port:uint16 : The listening port number of the server.
- - -c : Check hashes of files, after being transferred. Default if transferred encrypted.
- - -r : Copy directories recursively.
- - -f : Flatten copied directories, i.e. copy all files to base dir. Only meaningful if /r is set.
- - -i : IP version 4 (default) or 6.
- - -k : Path to a public RSA key (Windows: .der, Linux: .pem) file used to encrypt the data.
- - path:string[] : One or more paths of files or directories to be sent.
- 
-**Example:**  
-Two files, no hash check
-```bash
-$ client 127.0.0.1 8080 file1 file2
-```
-Two files with hash check
-```bash
-$ client 127.0.0.1 8080 -c file1 file2
-```
-Copy directory recursivly
-```bash
-$ client 127.0.0.1 8080 -r a/dir
-```
-encrypted
-```bash
-$ client 127.0.0.1 8080 -k dir/key.pem file1 file2
+$ FShare -m s -p 1234 files/
 ```
 
+Run encrypted server with ipv6 and save files in "files/"
+```bash
+$ FShare -m s -p 1234 -v 6 -k .ssl/priv.key files/
+```
 
-### Runtime Errors (Windows)
-If a "VCRUNTIMExxx.dll not found Error" occurs on the target system, statically including LIBCMT.lib is a solution.  
-This is done by using the `/p:RunTimeLib=Debug|Release` (msbuild) or `[/mt Release|Debug]` (winBuild) flags.
+Run plain ipv4 client, sending files file1 and file2 and checking the hashes
+```bash
+$ FShare -m c -i 127.0.0.1 -p 1234 -c file1 file2
+```
+
+Run encrypted ipv6 client, sending the directory "files" recursively
+```bash
+$ FShare -m c -i 127.0.0.1 -p 1234 -v 6 -c -k .ssl/pub.key -r files
+```
+
+Obviously, if the server expects encrypted files, the client has to send encrypted files.
+
+
+### Performance
+Files are sent in chunks of 0x100000 byte blocks. 
+The block size may be changed with the `-s` option in client mode.
+The server will adopt this value.
+
+If memory is low, this value may be decreased, at least down to 0x1000.
+
+After each block, the client waits for an answer of the server, which slows down the process.
+To speed up the transfer, the value may be increased (theoretically) up to 0xFFFFFFFF. 
+The upper limit comes due to MS BCrypt limits, that expect a ULONG (32-bit int) as the length value in en/decryption functions.
 
 
 ### Encryption
 Encryption is done by RSA (PKCS1 padding) and AES256 in CBC mode.
 The AES secret and IV is first sent encrypted with the public RSA key and then the file header and data is sent encrypted with the AES key.
 The client has to pass a public RSA (Windows: .der, Linux: .pem) key to which the server owns the corresponding private (Windows: .der, Linux: .pem) key.
-The communication partners have to know each other beforehand and obviously both have to provide a key or none of them.
+The communication partners have to know each other beforehand and obviously both of them have to provide a key or none of them.
 There is no key exchange happening like e.g. in TLS.  
 
 Currently, the private key has to be stored unencrypted as a file on the server system.  
@@ -131,22 +137,27 @@ On the other hand, there is only one IV created but used for sending the file he
 To ensure security, an AES block sized random buffer is added to the file header and the answers so that the IV is not consumed before sending the data.  
 This may be changed, if a better solution is found.
 
-Since the file has to be encrypted as a whole, again to don't consume the IV, there may be limits to its size if memory is low.
-This may be changed though in future versions.
-The buffer length type for `BCryptEncrypt` is ULONG which leads to a maximum size of max(ULONG) on this end.
-Bigger files may be transmitted split.
-
 RSA padding will be changed to AOEP in the future, when it's implemented correctly working on Windows.  
 AES block cipher mode may be changed too to GCM.
+
+Files are sent in chunks of 0x100000 (or whatever the `-s` option is set to) byte blocks. 
+For each block, the IV is rotated so it should be different for each block.
 
 
 ### Integrity
 The file data itself is checked by its sha256 hash. 
-Integrity checks for the headers and maybe the answers aswell will be added in future versions.
+Integrity checks for the headers and maybe the answers as well will be added in future versions when RSA signing is implemented correctly working on Windows.
+
+
+### Create keys
+```bash
+$ openssl ...
+```
 
 
 ## COPYRIGHT, CREDITS & CONTACT ## 
 Published under [GNU GENERAL PUBLIC LICENSE](LICENSE).
+
 
 #### Author ####
 - Henning Braun ([henning.braun@fkie.fraunhofer.de](henning.braun@fkie.fraunhofer.de)) 

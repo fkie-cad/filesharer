@@ -2,12 +2,14 @@
 
 #include <winternl.h>
 #include <wincrypt.h> // old
+#include <strsafe.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "../../winDefs.h"
-#ifdef DEBUG_PRINT
+#include "../../print.h"
+#if defined(DEBUG_PRINT)
 #include "../../debug.h"
 #endif
 
@@ -54,9 +56,7 @@ int RSA_init(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptOpenAlgorithmProvider\n", status);
-#endif
+        EPrint(status, "BCryptOpenAlgorithmProvider\n");
         return -1;
     }
 
@@ -109,6 +109,8 @@ int RSA_importPubKeyFromFile(
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
+    BOOL b;
+
     UCHAR* key_buffer = NULL;
     ULONG key_buffer_ln = 0;
     UCHAR* key_bytes = NULL;
@@ -120,9 +122,7 @@ int RSA_importPubKeyFromFile(
 
     if ( type == KEY_TYPE_PEM || type > KEY_TYPE_BLOB )
     {
-#ifdef ERROR_PRINT
-        printf("Unknown key type\n");
-#endif
+        EPrint(-1, "Unknown key type\n");
         return -1;
     }
 
@@ -164,7 +164,7 @@ int RSA_importPubKeyFromFile(
 //        {
 //            status = STATUS_UNSUCCESSFUL;
 //#ifdef ERROR_PRINT
-//            printf("Error (0x%x): CryptStringToBinaryA.\n", GetLastError());
+//            printf("CryptStringToBinaryA.\n");
 //#endif
 //            goto clean;
 //        }
@@ -176,7 +176,7 @@ int RSA_importPubKeyFromFile(
 //        {
 //            status = STATUS_NO_MEMORY;
 //#ifdef ERROR_PRINT
-//            printf("Error (0x%x): LocalAlloc.\n", GetLastError());
+//            printf("LocalAlloc.\n");
 //#endif
 //            goto clean;
 //        }
@@ -193,7 +193,7 @@ int RSA_importPubKeyFromFile(
 //        {
 //            status = STATUS_UNSUCCESSFUL;
 //#ifdef ERROR_PRINT
-//            printf("Error (0x%x): CryptStringToBinaryA.\n", GetLastError());
+//            printf("CryptStringToBinaryA.\n");
 //#endif
 //            goto clean;
 //        }
@@ -203,16 +203,14 @@ int RSA_importPubKeyFromFile(
     {
         // der = big endian
         // wc.blob = little endiam
-#ifdef DEBUG_PRINT
-        printf("convert der\n");
-#endif
+        DPrint("convert der\n");
         key_bytes_ln = key_buffer_ln;
         CERT_PUBLIC_KEY_INFO *publicKeyInfo = NULL;
         ULONG publicKeyInfoLen = 0;
 
         // Decode from DER format to CERT_PUBLIC_KEY_INFO. This has the public key
         // in ASN.1 encoded format called "SubjectPublicKeyInfo" ... szOID_RSA_RSA
-        status = CryptDecodeObjectEx(
+        b = CryptDecodeObjectEx(
             X509_ASN_ENCODING, 
             X509_PUBLIC_KEY_INFO, 
             key_buffer,
@@ -222,11 +220,9 @@ int RSA_importPubKeyFromFile(
             &publicKeyInfo, 
             &publicKeyInfoLen
         );
-        if ( !status )
+        if ( !b )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): CryptDecodeObjectEx 1.\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "CryptDecodeObjectEx 1.\n");
             status = STATUS_UNSUCCESSFUL;
             goto clean;
         }
@@ -249,7 +245,7 @@ int RSA_importPubKeyFromFile(
 #endif
 
         // Decode the RSA Public key itself to a PUBLICKEYBLOB
-        status = CryptDecodeObjectEx(
+        b = CryptDecodeObjectEx(
             X509_ASN_ENCODING, 
             RSA_CSP_PUBLICKEYBLOB,
             publicKeyInfo->PublicKey.pbData, 
@@ -259,11 +255,9 @@ int RSA_importPubKeyFromFile(
             &key_bytes, 
             &key_bytes_ln
         );
-        if ( !status )
+        if ( !b )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): CryptDecodeObjectEx 2.\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "CryptDecodeObjectEx 2.\n");
             status = STATUS_UNSUCCESSFUL;
             goto clean;
         }
@@ -306,15 +300,13 @@ int RSA_importPubKeyFromFile(
 //    {
 //        status = STATUS_UNSUCCESSFUL;
 //#ifdef ERROR_PRINT
-//        printf("Error (0x%x): Not a RSA public key.\n", status);
+//        printf("Not a RSA public key.\n", status);
 //#endif
 //        goto clean;
 //    }
     else
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): unknown key type.\n", STATUS_UNSUCCESSFUL);
-#endif
+        printf("unknown key type.\n");
         status = STATUS_UNSUCCESSFUL;
         goto clean;
     }
@@ -330,9 +322,7 @@ int RSA_importPubKeyFromFile(
     pbC = (PBYTE)LocalAlloc(0, blob_ln);
     if ( pbC == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): LocalAlloc\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "LocalAlloc\n");
         goto clean;
     }
     RtlZeroMemory(pbC, blob_ln);
@@ -352,9 +342,7 @@ int RSA_importPubKeyFromFile(
     // Modulus[cbModulus] // Big-endian.
     ptr = (PBYTE)(blob + 1);
     ReverseMemCopy(ptr, (PBYTE)&wc_blob_pk->pubexp, blob->cbPublicExp);
-#ifdef DEBUG_PRINT
-    printf(" exp: 0x%08x 0x%08x\n", (ULONG)*(ULONG*)ptr, wc_blob_pk->pubexp);
-#endif
+    DPrint(" exp: 0x%08x 0x%08x\n", (ULONG)*(ULONG*)ptr, wc_blob_pk->pubexp);
 
     // Copy Modulus Big Endian 
     //
@@ -407,14 +395,10 @@ int RSA_importPubKeyFromFile(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptImportKeyPair\n", status);
-#endif
+        EPrint(status, "BCryptImportKeyPair\n");
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf("key: %p\n", ctxt->pub_key);
-#endif
+    DPrint("key: %p\n", ctxt->pub_key);
 
 clean:
     if ( key_bytes != NULL && key_bytes != key_buffer )
@@ -433,6 +417,8 @@ int RSA_exportPubKeyToDER(
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
+    BOOL b;
+
     PBYTE buffer = NULL;
     PBYTE wc_buffer = NULL;
     PBYTE ptr = NULL;
@@ -460,9 +446,7 @@ int RSA_exportPubKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptExportKey\n", status);
-#endif
+        EPrint(status, "BCryptExportKey\n");
         goto clean;
     }
     
@@ -470,16 +454,12 @@ int RSA_exportPubKeyToDER(
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
     if ( buffer == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): LocalAlloc\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "LocalAlloc\n");
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
     blob = (BCRYPT_RSAKEY_BLOB*)buffer;
-#ifdef DEBUG_PRINT
-    printf("blob_ln: 0x%x\n", blob_ln);
-#endif
+    DPrint("blob_ln: 0x%x\n", blob_ln);
     
     status = BCryptExportKey(
         ctxt->pub_key,
@@ -492,9 +472,7 @@ int RSA_exportPubKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptExportKey\n", status);
-#endif
+        EPrint(status, "BCryptExportKey\n");
         goto clean;
     }
     
@@ -533,9 +511,7 @@ int RSA_exportPubKeyToDER(
     wc_buffer = (PBYTE)LocalAlloc(0, wc_blob_ln);
     if ( wc_buffer == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): LocalAlloc\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "LocalAlloc\n");
         goto clean;
     }
     RtlZeroMemory(wc_buffer, wc_blob_ln);
@@ -562,7 +538,7 @@ int RSA_exportPubKeyToDER(
     printf("convert to pubkey info\n");
 #endif
     // Decode the wc blob to a intermediate CERT_PUBLIC_KEY_INFO format
-    status = CryptEncodeObjectEx(
+    b = CryptEncodeObjectEx(
         X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 
         RSA_CSP_PUBLICKEYBLOB, // szOID_RSA_RSA
         wc_bh, 
@@ -571,11 +547,9 @@ int RSA_exportPubKeyToDER(
         &publicKeyInfo, 
         &publicKeyInfoLen
     );
-    if ( !status )
+    if ( !b )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): CryptEncodeObjectEx 1.\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "CryptEncodeObjectEx 1.\n");
         status = STATUS_UNSUCCESSFUL;
         goto clean;
     }
@@ -622,7 +596,7 @@ int RSA_exportPubKeyToDER(
 #endif
 
     // Encode to DER format
-    status = CryptEncodeObjectEx(
+    b = CryptEncodeObjectEx(
         X509_ASN_ENCODING, 
         X509_PUBLIC_KEY_INFO, 
         publicKeyInfo_t, 
@@ -631,11 +605,9 @@ int RSA_exportPubKeyToDER(
         &der_buffer, 
         &der_buffer_ln
     );
-    if ( !status )
+    if ( !b )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): CryptEncodeObjectEx 3.\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "CryptEncodeObjectEx 3.\n");
         status = STATUS_UNSUCCESSFUL;
         goto clean;
     }
@@ -687,9 +659,7 @@ int RSA_exportPubKeyToBLOB(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptExportKey\n", status);
-#endif
+        EPrint(status, "BCryptExportKey\n");
         goto clean;
     }
     
@@ -697,16 +667,12 @@ int RSA_exportPubKeyToBLOB(
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
     if ( buffer == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): LocalAlloc\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "LocalAlloc\n");
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
     blob = (BCRYPT_RSAKEY_BLOB*)buffer;
-#ifdef DEBUG_PRINT
-    printf("blob_ln: 0x%x\n", blob_ln);
-#endif
+    DPrint("blob_ln: 0x%x\n", blob_ln);
     
     status = BCryptExportKey(
         ctxt->pub_key,
@@ -719,9 +685,7 @@ int RSA_exportPubKeyToBLOB(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptExportKey\n", status);
-#endif
+        EPrint(status, "BCryptExportKey\n");
         goto clean;
     }
     
@@ -766,6 +730,8 @@ int RSA_importPrivKeyFromFile(
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
+    BOOL b;
+
     UCHAR* key_buffer = NULL;
     ULONG key_buffer_ln = 0;
     UCHAR* key_bytes = NULL;
@@ -781,9 +747,7 @@ int RSA_importPrivKeyFromFile(
 
     if ( type == KEY_TYPE_NONE )
     {
-#ifdef DEBUG_PRINT
-        printf("Unknown key type\n");
-#endif
+        EPrint(-1, "Unknown key type\n");
         return -1;
     }
 
@@ -824,7 +788,7 @@ int RSA_importPrivKeyFromFile(
 //        {
 //            status = STATUS_UNSUCCESSFUL;
 //#ifdef ERROR_PRINT
-//            printf("Error (0x%x): CryptStringToBinaryA.\n", GetLastError());
+//            printf("CryptStringToBinaryA.\n", GetLastError());
 //#endif
 //            goto clean;
 //        }
@@ -836,7 +800,7 @@ int RSA_importPrivKeyFromFile(
 //        {
 //            status = STATUS_NO_MEMORY;
 //#ifdef ERROR_PRINT
-//            printf("Error (0x%x): LocalAlloc.\n", GetLastError());
+//            printf("LocalAlloc.\n", GetLastError());
 //#endif
 //            goto clean;
 //        }
@@ -853,7 +817,7 @@ int RSA_importPrivKeyFromFile(
 //        {
 //            status = STATUS_UNSUCCESSFUL;
 //#ifdef ERROR_PRINT
-//            printf("Error (0x%x): CryptStringToBinaryA.\n", GetLastError());
+//            printf("CryptStringToBinaryA.\n", GetLastError());
 //#endif
 //            goto clean;
 //        }
@@ -863,12 +827,10 @@ int RSA_importPrivKeyFromFile(
     {
         // der = big endian
         // wc.blob = little endiam
-#ifdef DEBUG_PRINT
-        printf("convert der\n");
-#endif
+        DPrint("convert der\n");
 
         // Decode from DER format to wincrypt blob
-        status = CryptDecodeObjectEx(
+        b = CryptDecodeObjectEx(
             X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 
             PKCS_RSA_PRIVATE_KEY, 
             key_buffer, 
@@ -878,11 +840,9 @@ int RSA_importPrivKeyFromFile(
             &key_bytes, 
             &key_bytes_ln
         );
-        if ( !status )
+        if ( !b )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): CryptDecodeObjectEx 1.\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "CryptDecodeObjectEx 1.\n");
             status = STATUS_UNSUCCESSFUL;
             goto clean;
         }
@@ -908,10 +868,8 @@ int RSA_importPrivKeyFromFile(
 //    }
     else
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): unknown key type.\n", STATUS_UNSUCCESSFUL);
-#endif
         status = STATUS_UNSUCCESSFUL;
+        EPrint(status, "unknown key type.\n");
         goto clean;
     }
 #ifdef DEBUG_PRINT
@@ -919,19 +877,17 @@ int RSA_importPrivKeyFromFile(
     printMemory(key_bytes, key_bytes_ln, 0x10, 0);
 #endif
 
-    if ( wc_blob == NULL )
+    if ( wc_blob == NULL && key_bytes != NULL )
     {
         wc_blob = (BLOBHEADER*)(&key_bytes[0]);
         wc_blob_ln = key_bytes_ln - 0;
         wc_blob_pk = (RSAPUBKEY*)(wc_blob + 1);
     }
     
-    if ( wc_blob_pk->magic != BCRYPT_RSAPRIVATE_MAGIC )
+    if ( wc_blob_pk == NULL || wc_blob_pk->magic != BCRYPT_RSAPRIVATE_MAGIC )
     {
         status = STATUS_UNSUCCESSFUL;
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): Not a RSA public key.\n", status);
-#endif
+        EPrint(status, "Not a RSA public key.\n");
         goto clean;
     }
 
@@ -953,13 +909,11 @@ int RSA_importPrivKeyFromFile(
     
     ULONG modulus_bytes = wc_blob_pk->bitlen >> 3;
     ULONG prime_bytes = modulus_bytes >> 1;
-    blob_ln = sizeof(BCRYPT_RSAKEY_BLOB) + sizeof(wc_blob_pk->pubexp) + (modulus_bytes << 1); // modulus_bytes + 2*prime_bytes == 2 * modulus_bytes
+    blob_ln = (ULONG)sizeof(BCRYPT_RSAKEY_BLOB) + (ULONG)sizeof(wc_blob_pk->pubexp) + (modulus_bytes << 1); // modulus_bytes + 2*prime_bytes == 2 * modulus_bytes
     pbC = (PBYTE)LocalAlloc(0, blob_ln);
     if ( pbC == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): LocalAlloc\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "LocalAlloc\n");
         goto clean;
     }
     RtlZeroMemory(pbC, blob_ln);
@@ -983,9 +937,7 @@ int RSA_importPrivKeyFromFile(
     // Prime2[cbPrime2] // Big-endian.
     bcb_ptr = (PBYTE)(blob + 1);
     ReverseMemCopy(bcb_ptr, (PBYTE)&wc_blob_pk->pubexp, blob->cbPublicExp);
-#ifdef DEBUG_PRINT
-    printf(" exp: 0x%08x 0x%08x\n", (ULONG)*(ULONG*)bcb_ptr, wc_blob_pk->pubexp);
-#endif
+    DPrint(" exp: 0x%08x 0x%08x\n", (ULONG)*(ULONG*)bcb_ptr, wc_blob_pk->pubexp);
 
     // Copy Modulus Big Endian 
     //
@@ -1066,14 +1018,10 @@ int RSA_importPrivKeyFromFile(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptImportKeyPair\n", status);
-#endif
+        EPrint(status, "BCryptImportKeyPair\n");
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf("key: %p\n", ctxt->priv_key);
-#endif
+    DPrint("key: %p\n", ctxt->priv_key);
 
 clean:
     if ( key_bytes != NULL && key_bytes != key_buffer )
@@ -1124,9 +1072,7 @@ int RSA_exportPrivKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptExportKey\n", status);
-#endif
+        EPrint(status, "BCryptExportKey\n");
         goto clean;
     }
     
@@ -1134,16 +1080,12 @@ int RSA_exportPrivKeyToDER(
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
     if ( buffer == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): LocalAlloc\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "LocalAlloc\n");
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
     blob = (BCRYPT_RSAKEY_BLOB*)buffer;
-#ifdef DEBUG_PRINT
-    printf("blob_ln: 0x%x\n", blob_ln);
-#endif
+    DPrint("blob_ln: 0x%x\n", blob_ln);
     
     status = BCryptExportKey(
         ctxt->priv_key,
@@ -1156,9 +1098,7 @@ int RSA_exportPrivKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptExportKey\n", status);
-#endif
+        EPrint(status, "BCryptExportKey\n");
         goto clean;
     }
     
@@ -1238,7 +1178,7 @@ int RSA_exportPrivKeyToDER(
 //    if ( !status )
 //    {
 //#ifdef ERROR_PRINT
-//        printf("Error (0x%x): CryptEncodeObjectEx 1.\n", GetLastError());
+//        printf("CryptEncodeObjectEx 1.\n", GetLastError());
 //#endif
 //        status = STATUS_UNSUCCESSFUL;
 //        goto clean;
@@ -1300,7 +1240,7 @@ int RSA_exportPrivKeyToDER(
 //    if ( !status )
 //    {
 //#ifdef ERROR_PRINT
-//        printf("Error (0x%x): CryptEncodeObjectEx 3.\n", GetLastError());
+//        printf("CryptEncodeObjectEx 3.\n", GetLastError());
 //#endif
 //        status = STATUS_UNSUCCESSFUL;
 //        goto clean;
@@ -1362,23 +1302,17 @@ int RSA_encrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptEncrypt get size\n", status);
-#endif
+        EPrint(status, "BCryptEncrypt get size\n");
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf("required_size: 0x%x\n", required_size);
-#endif
+    DPrint("required_size: 0x%x\n", required_size);
 
     if ( *encrypted == NULL )
     {
         *encrypted = (PUCHAR)malloc(required_size);
         if ( *encrypted == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "malloc out buffer\n");
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1387,10 +1321,8 @@ int RSA_encrypt(
     {
         if ( required_size > *encrypted_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided encryption buffer[0x%x] is too small! 0x%x needed.\n", *encrypted_ln, required_size);
-#endif
             status = STATUS_NO_MEMORY;
+            EPrint(status, "Provided encryption buffer[0x%x] is too small! 0x%x needed.\n", *encrypted_ln, required_size);
             goto clean;
         }
     }
@@ -1413,9 +1345,7 @@ int RSA_encrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptEncrypt\n", status);
-#endif
+        EPrint(status, "BCryptEncrypt\n");
         goto clean;
     }
 
@@ -1455,14 +1385,10 @@ int RSA_decrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptDecrypt get size\n", status);
-#endif
+        EPrint(status, "BCryptDecrypt get size\n");
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf("required_size: 0x%x\n", required_size);
-#endif
+    DPrint("required_size: 0x%x\n", required_size);
     
     
     if ( *plain == NULL )
@@ -1470,9 +1396,7 @@ int RSA_decrypt(
         *plain = (PUCHAR)malloc(required_size);
         if ( *plain == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "malloc out buffer\n");
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1481,10 +1405,8 @@ int RSA_decrypt(
     {
         if ( required_size > *plain_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *plain_ln, required_size);
-#endif
             status = STATUS_NO_MEMORY;
+            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *plain_ln, required_size);
             goto clean;
         }
     }
@@ -1507,9 +1429,7 @@ int RSA_decrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptDecrypt\n", status);
-#endif
+        EPrint(status, "BCryptDecrypt\n");
         goto clean;
     }
     
@@ -1572,23 +1492,17 @@ int RSA_signHash(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptSignHash get size\n", status);
-#endif
+        EPrint(status, "BCryptSignHash get size\n");
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf("required_size: 0x%x\n", required_size);
-#endif
+    DPrint("required_size: 0x%x\n", required_size);
 
     if ( *signature == NULL )
     {
         *signature = (PUCHAR)malloc(required_size);
         if ( *signature == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "malloc out buffer\n");
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1597,10 +1511,8 @@ int RSA_signHash(
     {
         if ( required_size > *signature_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *signature_ln, required_size);
-#endif
             status = STATUS_NO_MEMORY;
+            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *signature_ln, required_size);
             goto clean;
         }
     }
@@ -1618,9 +1530,7 @@ int RSA_signHash(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptSignHash\n", status);
-#endif
+        EPrint(status, "BCryptSignHash\n");
         goto clean;
     }
 
@@ -1677,9 +1587,7 @@ int RSA_verifyHash(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptVerifySignature\n", status);
-#endif
+        EPrint(status, "BCryptVerifySignature\n");
         goto clean;
     }
 
@@ -1748,23 +1656,17 @@ int RSA_signHash2(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptSignHash get size\n", status);
-#endif
+        EPrint(status, "BCryptSignHash get size\n");
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf("required_size: 0x%x\n", required_size);
-#endif
+    DPrint("required_size: 0x%x\n", required_size);
 
     if ( *signature == NULL )
     {
         *signature = (PUCHAR)malloc(required_size);
         if ( *signature == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "malloc out buffer\n");
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1773,17 +1675,13 @@ int RSA_signHash2(
     {
         if ( required_size > *signature_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *signature_ln, required_size);
-#endif
             status = STATUS_NO_MEMORY;
+            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *signature_ln, required_size);
             goto clean;
         }
     }
     *signature_ln = required_size;
-#ifdef DEBUG_PRINT
-    printf("required_size: 0x%x\n", required_size);
-#endif
+    DPrint("required_size: 0x%x\n", required_size);
     
     status = BCryptEncrypt(
         ctxt->priv_key,
@@ -1799,9 +1697,7 @@ int RSA_signHash2(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptSignHash\n", status);
-#endif
+        EPrint(status, "BCryptSignHash\n");
         goto clean;
     }
 
@@ -1865,14 +1761,10 @@ int RSA_verifyHash2(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptDecrypt get size\n", status);
-#endif
+        EPrint(status, "BCryptDecrypt get size\n");
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf("required_size: 0x%x\n", required_size);
-#endif
+    DPrint("required_size: 0x%x\n", required_size);
     
     
     if ( *hash == NULL )
@@ -1880,9 +1772,7 @@ int RSA_verifyHash2(
         *hash = (PUCHAR)malloc(required_size);
         if ( *hash == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", GetLastError());
-#endif
+            EPrint(GetLastError(), "malloc out buffer\n");
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1891,10 +1781,8 @@ int RSA_verifyHash2(
     {
         if ( required_size > *hash_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *hash_ln, required_size);
-#endif
             status = STATUS_NO_MEMORY;
+            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *hash_ln, required_size);
             goto clean;
         }
     }
@@ -1917,9 +1805,7 @@ int RSA_verifyHash2(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptDecrypt\n", status);
-#endif
+        EPrint(status, "BCryptDecrypt\n");
         goto clean;
     }
     
@@ -1980,35 +1866,27 @@ NTSTATUS loadFileBytes(
     RtlZeroMemory(&objAttr, sizeof(objAttr));
     RtlZeroMemory(&iosb, sizeof(iosb));
     RtlZeroMemory(wpath, sizeof(wpath));
-#ifdef DEBUG_PRINT
-    printf("getFileBytes\n");
-    printf(" - path: %s\n", path);
-#endif
+    DPrint("getFileBytes\n");
+    DPrint(" - path: %s\n", path);
     
     fpl = GetFullPathNameA(path, MAX_PATH, full_path, NULL);
     if (!fpl)
     {
-        printf("ERROR (0x%lx): Get full path failed for \"%s\".", GetLastError(), path);
+        EPrint(GetLastError(), "Get full path failed for \"%s\".", path);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf(" - full_path: %s\n", full_path);
-#endif
+    DPrint(" - full_path: %s\n", full_path);
 
-    status = swprintf(wpath, MAX_PATH, L"\\??\\%hs", full_path);
+    status = StringCchPrintfW(wpath, MAX_PATH, L"\\??\\%hs", full_path);
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): RtlStringCchPrintfW\n", status);
-#endif
+        EPrint(status, "RtlStringCchPrintfW\n");
         goto clean;
     }
     wpath[MAX_PATH - 1] = 0;
     RtlInitUnicodeString(&uc_path, wpath);
-#ifdef DEBUG_PRINT
-    printf(" - uc path: %ws\n", uc_path.Buffer);
-#endif
+    DPrint(" - uc path: %ws\n", uc_path.Buffer);
 
     InitializeObjectAttributes(
         &objAttr,
@@ -2033,18 +1911,14 @@ NTSTATUS loadFileBytes(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): NtCreateFile\n", status);
-#endif
+        EPrint(status, "NtCreateFile\n");
         goto clean;
     }
 
     fpl = GetFileSizeEx(file, &file_size);
     if (!fpl)
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): GetFileSizeEx \"%s\".", GetLastError(), path);
-#endif
+        EPrint(GetLastError(), "GetFileSizeEx \"%s\".", path);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
@@ -2052,9 +1926,7 @@ NTSTATUS loadFileBytes(
     *buffer = (UCHAR*)malloc((SIZE_T)file_size.QuadPart);
     if ( *buffer == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): malloc key_buffer\n", GetLastError());
-#endif
+        EPrint(GetLastError(), "malloc key_buffer\n");
         status = STATUS_NO_MEMORY;
         goto clean;
     }
@@ -2075,18 +1947,14 @@ NTSTATUS loadFileBytes(
     );
     if ( !NT_SUCCESS(status) || !NT_SUCCESS(iosb.Status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): NtReadFile\n", status);
-#endif
+        EPrint(status, "NtReadFile\n");
         goto clean;
     }
     if ( (ULONG)iosb.Information > *buffer_ln )
     {
         status = STATUS_UNSUCCESSFUL;
         *buffer_ln = 0;
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): key_buffer to small. 0x%x needed.\n", status, (ULONG)iosb.Information);
-#endif
+        EPrint(status, "key_buffer to small. 0x%x needed.\n", (ULONG)iosb.Information);
         goto clean;
     }
     *buffer_ln = (ULONG)iosb.Information;
@@ -2118,35 +1986,27 @@ NTSTATUS writeFileBytes(
     RtlZeroMemory(&objAttr, sizeof(objAttr));
     RtlZeroMemory(&iosb, sizeof(iosb));
     RtlZeroMemory(wpath, sizeof(wpath));
-#ifdef DEBUG_PRINT
-    printf("writeFileBytes\n");
-    printf(" - path: %s\n", path);
-#endif
+    DPrint("writeFileBytes\n");
+    DPrint(" - path: %s\n", path);
     
     fpl = GetFullPathNameA(path, MAX_PATH, full_path, NULL);
     if (!fpl)
     {
-        printf("ERROR (0x%lx): Get full path failed for \"%s\".", GetLastError(), path);
+        EPrint(GetLastError(), "Get full path failed for \"%s\".", path);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
-#ifdef DEBUG_PRINT
-    printf(" - full_path: %s\n", full_path);
-#endif
+    DPrint(" - full_path: %s\n", full_path);
 
-    status = swprintf(wpath, MAX_PATH, L"\\??\\%hs", full_path);
+    status = StringCchPrintfW(wpath, MAX_PATH, L"\\??\\%hs", full_path);
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): RtlStringCchPrintfW\n", status);
-#endif
+        EPrint(status, "RtlStringCchPrintfW\n");
         goto clean;
     }
     wpath[MAX_PATH - 1] = 0;
     RtlInitUnicodeString(&uc_path, wpath);
-#ifdef DEBUG_PRINT
-    printf(" - uc path: %ws\n", uc_path.Buffer);
-#endif
+    DPrint(" - uc path: %ws\n", uc_path.Buffer);
 
     InitializeObjectAttributes(
         &objAttr,
@@ -2171,9 +2031,7 @@ NTSTATUS writeFileBytes(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): NtCreateFile\n", status);
-#endif
+        EPrint(status, "NtCreateFile\n");
         goto clean;
     }
 
@@ -2191,9 +2049,7 @@ NTSTATUS writeFileBytes(
     );
     if ( !NT_SUCCESS(status) || !NT_SUCCESS(iosb.Status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): NtReadFile\n", status);
-#endif
+        EPrint(status, "NtReadFile\n");
         goto clean;
     }
 

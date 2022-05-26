@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "sock.h"
+#include "../print.h"
 
 
 
@@ -22,9 +23,7 @@ int initConnection(
     if ( s != 0 )
         return s;
     
-#ifdef DEBUG_PRINT
-    printf("Initialized.\n");
-#endif
+    DPrint("Initialized.\n");
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = family;
@@ -33,15 +32,11 @@ int initConnection(
     hints.ai_flags = AI_NUMERICHOST | flags;
 
     // Resolve the server address and port
-#ifdef DEBUG_PRINT
-    printf("getaddrinfo\n");
-#endif
+    DPrint("getaddrinfo\n");
     s = getaddrinfo(ip, port_str, &hints, addr_info);
     if ( s != 0 || (*addr_info)->ai_addr == NULL)
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%x): getaddrinfo failed with error\n", s);
-#endif
+        EPrint(s, "getaddrinfo failed with error\n");
         s = -1;
         goto clean;
     }
@@ -53,16 +48,12 @@ int initConnection(
     *sock = socket((*addr_info)->ai_family, (*addr_info)->ai_socktype, (*addr_info)->ai_protocol);
     if ( *sock == INVALID_SOCKET )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%x): Could not create socket.\n", getLastSError());
-#endif
-        s = -1;
+        s = getLastSError();
+        EPrint(s, "Could not create socket.\n");
         goto clean;
     }
     
-#ifdef DEBUG_PRINT
-    printf("Socket created.\n");
-#endif
+    DPrint("Socket created.\n");
     
 clean:
     ;
@@ -81,9 +72,19 @@ int connectSock(
     if ( s < 0)
     {
 #ifdef ERROR_PRINT
-        printf("ERROR (0x%x): Connect error.\n", getLastSError());
+        s = getLastSError();
+        if ( s == WSAESHUTDOWN )
+            printf("ERROR (0x%x): WSAESHUTDOWN.\n", s);
+        else if ( s == WSAETIMEDOUT )
+            printf("ERROR (0x%x): WSAETIMEDOUT.\n", s);
+        else if ( s == WSAECONNREFUSED )
+            printf("ERROR (0x%x): WSAECONNREFUSED.\n", s);
+        else if ( s == WSAEHOSTDOWN )
+            printf("ERROR (0x%x): WSAEHOSTDOWN.\n", s);
+        else
+            printf("ERROR (0x%x): Connect error.\n", s);
 #endif
-        return -1;
+        return s;
     }
     
 #ifdef DEBUG_PRINT

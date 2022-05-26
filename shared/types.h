@@ -15,6 +15,10 @@
 #define MAX_PATH PATH_MAX
 #endif
 
+#ifndef PAGE_SIZE
+#define PAGE_SIZE 0x1000
+#endif
+
 #ifndef bool
 //#if defined (_WIN32)
 //#define bool BOOL

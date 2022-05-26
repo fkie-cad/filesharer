@@ -23,7 +23,8 @@ typedef struct Sha256Ctxt {
     DWORD hash_size;
     DWORD hash_object_size;
     PBYTE hash_object;
-} Sha256Ctxt, * PSha256Ctxt;
+} HashCtxt, *PHashCtxt,
+  Sha256Ctxt, * PSha256Ctxt;
 
 
 int initSha256(PSha256Ctxt ctxt);
@@ -75,7 +76,7 @@ int sha256FileC(
  */
 int sha256Buffer(
     uint8_t* buffer, 
-    uint32_t buffer_ln, 
+    size_t buffer_ln, 
     unsigned char* hash_bytes, 
     uint16_t hash_bytes_size
 );
@@ -92,7 +93,7 @@ int sha256Buffer(
  */
 int sha256BufferC(
     uint8_t* buffer, 
-    uint32_t buffer_ln, 
+    size_t buffer_ln, 
     unsigned char* hash_bytes, 
     uint16_t hash_bytes_size, 
     PSha256Ctxt ctxt

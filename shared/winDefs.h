@@ -7,6 +7,10 @@
 
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 
+// warnings
+#define STATUS_BUFFER_OVERFLOW               ((NTSTATUS)0x80000005L)
+
+// errors
 #define STATUS_SUCCESS                       ((NTSTATUS)0x00000000L)
 #define STATUS_UNSUCCESSFUL                  ((NTSTATUS)0xC0000001L)
 #define STATUS_NO_SUCH_FILE                  ((NTSTATUS)0xC000000FL)   

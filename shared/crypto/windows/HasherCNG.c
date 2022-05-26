@@ -1,18 +1,18 @@
-#define  _CRT_SECURE_NO_WARNINGS
-
-#if defined(__linux__) || defined(__linux) || defined(linux)
-#include <errno.h>
-#endif
-
+//C4996: 'xxx': This function or variable may be unsafe.
+#pragma warning( disable : 4996 )
 #include <stdio.h>
+#include <stdio.h>
+#include <strsafe.h>
 
 #include "HasherCNG.h"
 #include "../../files/Files.h"
 #include "../../winDefs.h"
+#include "../../print.h"
 
 
 #define BUFFER_SIZE (0x1000)
 
+#define STATUS_BUFFER_TOO_SMALL          ((NTSTATUS)0xC0000023L)
 
 
 static int createHash(PSha256Ctxt ctxt);
@@ -59,20 +59,13 @@ int hashData(
     errsv = errno;
     if ( (bytes_read == 0 || bytes_read != to_read) && errsv != 0 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%x): Reading bytes failed!\n", errsv);
-#endif
-        status = 10;
+        status = errsv;
         goto clean;
     }
 
     status = BCryptHashData(ctxt->hash, buffer, (ULONG)bytes_read, 0);
     if (!NT_SUCCESS(status))
     {
-#ifdef ERROR_PRINT
-        printf("Error 0x%x returned by BCryptHashData\n", status);
-#endif
-        status = 8;
         goto clean;
     }
 clean:
@@ -92,52 +85,43 @@ int sha256FileC(const char* path, unsigned char* hash_bytes, uint16_t hash_bytes
     size_t parts;
     size_t rest;
     size_t i;
+    int errsv;
 
     if ( hash_bytes_size < ctxt->hash_size )
     {
-        s = 9;
+        s = -9;
         goto clean;
     }
 
     s = createHash(ctxt);
     if ( s != 0 )
     {
-        s = 8;
+        s = -8;
         goto clean;
     }
-
+    
+    errno = 0;
     fp = fopen(path, "rb");
+    errsv = errno;
     if ( !fp )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR: Could not open file \"%s\"!\n", path);
-#endif
-        s = 7;
+        s = errsv;
         goto clean;
     }
 
     s = getFileSize(path, &file_size);
     if ( s != 0 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%x): getFileSize \"%s\"!\n", s, path);
-#endif
-        s = 10;
         goto clean;
     }
 
     parts = file_size / BUFFER_SIZE;
     rest = file_size % BUFFER_SIZE;
-    i;
     for ( i = 0; i < parts; i++ )
     {
         s = hashData(buffer, BUFFER_SIZE, offset, fp, ctxt);
         if ( !NT_SUCCESS(s) )
         {
-#ifdef ERROR_PRINT
-            printf("Error 0x%x returned by BCryptHashData\n", status);
-#endif
-            s = 8;
             goto clean;
         }
 
@@ -148,78 +132,17 @@ int sha256FileC(const char* path, unsigned char* hash_bytes, uint16_t hash_bytes
         s = hashData(buffer, rest, offset, fp, ctxt);
         if ( !NT_SUCCESS(s) )
         {
-#ifdef ERROR_PRINT
-            printf("Error 0x%x returned by BCryptHashData\n", status);
-#endif
-            s = 8;
             goto clean;
         }
     }
-
-//    size_t bytes_read;
-//    size_t to_read;
-//    int errsv;
-//    while ( offset < file_size )
-//    {
-//        to_read = BUFFER_SIZE;
-//        if (offset + to_read > file_size)
-//            to_read = file_size - offset;
-//        errno = 0;
-//        bytes_read = fread(buffer, 1, to_read, fp);
-//        errsv = errno;
-//        if ((bytes_read == 0 || bytes_read != to_read) && errsv != 0)
-//        {
-//#ifdef ERROR_PRINT
-//            printf("ERROR (0x%x): Reading bytes failed!\n", errsv);
-//#endif
-//            s = 10;
-//            goto clean;
-//        }
-//
-//        status = BCryptHashData(ctxt->hash, buffer, (ULONG)bytes_read, 0);
-//        if (!NT_SUCCESS(status))
-//        {
-//#ifdef ERROR_PRINT
-//            printf("Error 0x%x returned by BCryptHashData\n", status);
-//#endif
-//            s = 8;
-//            goto clean;
-//        }
-//
-//        if (to_read < BUFFER_SIZE)
-//            break;
-//
-//        offset += to_read;
-//    }
-    //while ((bytes_read = fread(buffer, 1, buf_size, file)))
-    //{
-    //    status = BCryptHashData(hHash, buffer, bytes_read, 0);
-    //    if (!NT_SUCCESS(status))
-    //    {
-    //        printf("Error 0x%x returned by BCryptHashData\n", status);
-    //        s = 8;
-    //        goto clean;
-    //    }
-    //}
 
     // close the hash
     status = BCryptFinishHash(ctxt->hash, hash_bytes, ctxt->hash_size, 0);
     if (!NT_SUCCESS(status))
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptFinishHash\n", status);
-#endif
-        s = 9;
+        s = status;
         goto clean;
     }
-
-    //printf("cbHash %d:\n", cbHash);
-    //printf("SHA256 of %s:\n", path);
-    //for (DWORD i = 0; i < cbHash; i++)
-    //{
-    //    printf("%02x", hash_bytes[i]);
-    //}
-    //printf("\n");
 
 clean:
     if (fp)
@@ -230,9 +153,71 @@ clean:
     return s;
 }
 
+NTSTATUS hashBufferC(
+    uint8_t* buffer, 
+    size_t buffer_ln, 
+    unsigned char* hash_bytes, 
+    uint16_t hash_bytes_size, 
+    PSha256Ctxt ctxt
+)
+{
+    NTSTATUS status = STATUS_UNSUCCESSFUL;
+
+    SIZE_T parts;
+    ULONG rest;
+    SIZE_T i;
+    SIZE_T offset;
+
+    if ( hash_bytes_size < ctxt->hash_size )
+    {
+        status = STATUS_BUFFER_TOO_SMALL;
+        goto clean;
+    }
+
+    status = createHash(ctxt);
+    if ( !NT_SUCCESS(status) )
+    {
+        goto clean;
+    }
+
+    offset = 0;
+    parts = buffer_ln / ULONG_MAX;
+    rest = (ULONG)(buffer_ln % ULONG_MAX);
+
+    for ( i = 0; i < parts; i++ )
+    {
+        status = BCryptHashData(ctxt->hash, &buffer[offset], (ULONG)ULONG_MAX, 0);
+        if ( !NT_SUCCESS(status) )
+        {
+            goto clean;
+        }
+        offset += ULONG_MAX;
+    }
+    if ( rest != 0 )
+    {
+        status = BCryptHashData(ctxt->hash, &buffer[offset], rest, 0);
+        if ( !NT_SUCCESS(status) )
+        {
+            goto clean;
+        }
+    }
+
+    // close the hash
+    status = BCryptFinishHash(ctxt->hash, hash_bytes, ctxt->hash_size, 0);
+    if ( !NT_SUCCESS(status) )
+    {
+        goto clean;
+    }
+
+clean:
+    ;
+
+    return status;
+}
+
 int sha256Buffer(
     uint8_t* buffer, 
-    uint32_t buffer_ln, 
+    size_t buffer_ln, 
     unsigned char* hash_bytes, 
     uint16_t hash_bytes_size
 )
@@ -256,66 +241,32 @@ clean:
 
 int sha256BufferC(
     uint8_t* buffer, 
-    uint32_t buffer_ln, 
+    size_t buffer_ln, 
     unsigned char* hash_bytes, 
     uint16_t hash_bytes_size, 
     PSha256Ctxt ctxt
 )
 {
-    NTSTATUS status = STATUS_UNSUCCESSFUL;
-    int s = 0;
-
-    if ( hash_bytes_size < ctxt->hash_size )
-    {
-        s = 9;
-        goto clean;
-    }
-
-    s = createHash(ctxt);
-    if ( s != 0 )
-    {
-        s = 8;
-        goto clean;
-    }
-
-    status = BCryptHashData(ctxt->hash, buffer, (ULONG)buffer_ln, 0);
-    if ( !NT_SUCCESS(status) )
-    {
-        printf("Error 0x%x returned by BCryptHashData\n", status);
-        s = 8;
-        goto clean;
-    }
-
-    // close the hash
-    status = BCryptFinishHash(ctxt->hash, hash_bytes, ctxt->hash_size, 0);
-    if ( !NT_SUCCESS(status) )
-    {
-        printf("Error (0x%x): BCryptFinishHash\n", status);
-        s = 9;
-        goto clean;
-    }
-
-    //printf("cbHash %d:\n", cbHash);
-    //printf("SHA256 of %s:\n", path);
-    //for (DWORD i = 0; i < cbHash; i++)
-    //{
-    //    printf("%02x", hash_bytes[i]);
-    //}
-    //printf("\n");
-
-clean:
-    ;
-
-    return s;
+    return hashBufferC(buffer, buffer_ln, hash_bytes, hash_bytes_size, ctxt);
 }
 
 void hashToString(const unsigned char* hash, uint16_t hash_size, char* output, uint16_t output_size)
 {
     uint16_t i = 0;
+    //uint16_t rest = output_size;
+    char* digitMap = "0123456789abcdef";
 
-    for (i = 0; i < hash_size; i++)
+    if ( (hash_size * 2) + 1 > output_size )
     {
-        sprintf(output + (i * 2), "%02x", hash[i]);
+        EPrint(STATUS_BUFFER_TOO_SMALL, "output_size too small!\n");
+        return;
+    }
+
+    for ( i = 0; i < hash_size; i++ )
+    {
+        output[i] = digitMap[(hash[i]>>4)&0xF];
+        output[i+1] = digitMap[(hash[i])&0xF];
+        //StringCchPrintfA(output + (i * 2), rest--, "%02x", hash[i]);
     }
 
     output[output_size-1] = 0;
@@ -349,9 +300,6 @@ int initSha256(PSha256Ctxt ctxt)
         0);
     if (!NT_SUCCESS(status))
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptOpenAlgorithmProvider\n", status);
-#endif
         cleanSha256(ctxt);
         return 1;
     }
@@ -366,9 +314,6 @@ int initSha256(PSha256Ctxt ctxt)
         0);
     if (!NT_SUCCESS(status))
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptGetProperty\n", status);
-#endif
         cleanSha256(ctxt);
         return 2;
     }
@@ -380,9 +325,6 @@ int initSha256(PSha256Ctxt ctxt)
     ctxt->hash_object = (PBYTE)HeapAlloc(heap, 0, ctxt->hash_object_size);
     if ( NULL == ctxt->hash_object )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR: memory allocation failed\n");
-#endif
         cleanSha256(ctxt);
         return 3;
     }
@@ -397,18 +339,9 @@ int initSha256(PSha256Ctxt ctxt)
         0);
     if (!NT_SUCCESS(status))
     {
-#ifdef ERROR_PRINT
-        printf("Error 0x%x returned by BCryptGetProperty\n", status);
-#endif
         cleanSha256(ctxt);
         return 4;
     }
-    //printf("cbHash: 0x%lx\n", cbHash);
-    //printf("cbData: 0x%lx\n", cbData);
-
-
-    //printf("hHash: 0x%p\n", hHash);
-    //printf("pbHashObject: 0x%p\n", pbHashObject);
 
     return s;
 }
@@ -432,9 +365,6 @@ int createHash(PSha256Ctxt ctxt)
         0);
     if (!NT_SUCCESS(status))
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptCreateHash\n", status);
-#endif
         cleanSha256(ctxt);
         return 6;
     }

@@ -13,6 +13,12 @@
 
 #include <stdint.h>
 
+
+
+#define GET_ENC_AES_SIZE(__ds__) ( __ds__ + ( AES_STD_BLOCK_SIZE - ( __ds__ % AES_STD_BLOCK_SIZE ) ) )
+
+
+
 #define INIT_PUB_KEY (0x1)
 #define INIT_PRIV_KEY (0x2)
 
@@ -94,5 +100,11 @@ int decryptData(
 );
 
 int c_clean();
+
+
+int rotate64Iv(
+    uint8_t* iv, 
+    uint32_t id
+);
 
 #endif

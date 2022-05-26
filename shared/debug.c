@@ -1,9 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "debug.h"
-//#ifdef _WIN32
-//#include "winErrPrint.h"
-//#endif
+#ifdef _WIN32
+// warning C28719: Banned API Usage
+#pragma warning ( disable : 28719)
+#endif
 
 void printMemory(
     void* mem, 

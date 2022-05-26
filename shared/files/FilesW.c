@@ -9,7 +9,6 @@
 
 int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32_t flags, void* params, int* killed)
 {
-    debug_info("actOnFilesInDir(%s)\n", dir);
     HANDLE hFind = INVALID_HANDLE_VALUE;
     WIN32_FIND_DATA ffd;
     char* mask = "*";
@@ -23,7 +22,6 @@ int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32
 
     if ( !dirExists(dir) )
     {
-        printf("ERROR: FileUtil::actOnFilesInDir: \"%s\" does not exist!", dir);
         return 0;
     }
 
@@ -37,16 +35,13 @@ int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32
         entry = Fifo_front(&directories);
         act_path = (char*)entry->value;
 
-        debug_info(" - act_path: %s\n", act_path);
         memset(spec, 0, MAX_PATH);
         snprintf(spec, MAX_PATH, "%s\\%s", act_path, mask);
         spec[MAX_PATH - 1] = 0;
-        debug_info(" - spec: %s\n", spec);
 
         hFind = FindFirstFile(spec, &ffd);
         if (hFind == INVALID_HANDLE_VALUE)
         {
-            printf(" - ERROR (0x%x): hfinf\n", GetLastError());
             s = 0;
             break;
         }
@@ -56,8 +51,6 @@ int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32
                 strcmp(ffd.cFileName, "..") != 0)
             {
                 memset(spec, 0, MAX_PATH);
-                debug_info(" - - act_path: %s\n", act_path);
-                debug_info(" - - ffd.cFileName: %s\n", ffd.cFileName);
                 snprintf(spec, MAX_PATH, "%s\\%s", act_path, ffd.cFileName);
                 spec[MAX_PATH - 1] = 0;
                 if ( (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
@@ -65,9 +58,7 @@ int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32
                     if (!recursive)
                         continue;
 
-                    debug_info(" - - dir: %s\n", spec);
                     s = (int)Fifo_push(&directories, spec, strlen(spec)+1);
-                    debug_info(" - - fifo size: %u\n", s);
                     if (s == 0)
                     {
                         printf("Fifo push error!\n");
@@ -76,7 +67,6 @@ int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32
                 }
                 else
                 {
-                    debug_info(" - - file: %s\n", spec);
                     cb(spec, ffd.cFileName, params);
                 }
             }
@@ -159,7 +149,6 @@ size_t getFullPathName(
     int fpl = GetFullPathNameA((char*)src, MAX_PATH, full_path, (char**)base_name);
     if (!fpl)
     {
-        printf("ERROR (0x%lx): Get full path failed for \"%s\".", GetLastError(), src);
         return 0;
     }
     return fpl;
@@ -186,7 +175,6 @@ int mkdir_r(const char* dir)
     errsv = strcpy_s(_path, MAX_PATH, path);
     if ( errsv != 0 )
     {
-        printf("ERROR (0x%x): strcpy_s(%s)!\n", errsv, path);
         return -1;
     }
     _path[MAX_PATH-1] = 0;
@@ -204,7 +192,6 @@ int mkdir_r(const char* dir)
                 errsv = GetLastError();
                 if (errsv != ERROR_ALREADY_EXISTS)
                 {
-                    printf("ERROR (0x%x): Creating directory \"%s\" failed!\n", GetLastError(), _path);
                     return -1;
                 }
             }
@@ -219,7 +206,6 @@ int mkdir_r(const char* dir)
         errsv = GetLastError();
         if ( errsv != ERROR_ALREADY_EXISTS )
         {
-            printf("ERROR (0x%x): Creating directory \"%s\" failed!\n", GetLastError(), _path);
             return -1;
         }
     }

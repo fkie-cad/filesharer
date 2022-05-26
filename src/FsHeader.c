@@ -1,7 +1,6 @@
 #include "string.h"
 
 #include "FsHeader.h"
-#include "debug.h"
 
 FsKeyHeaderOffsets fs_key_header_offsets = {
     .type = 0,
@@ -67,24 +66,30 @@ FsFileHeaderOffsets fs_f_header_offsets = {
     .garbage = 0,
     .type = AES_IV_SIZE,
     .file_size = AES_IV_SIZE + 8,
-    .base_name_ln = AES_IV_SIZE + 16,
-    .sub_dir_ln = AES_IV_SIZE + 18,
-    .hash_ln = AES_IV_SIZE + 20,
-    .sub_dir = AES_IV_SIZE + 22,
-    .base_name = AES_IV_SIZE + 22, // + sub_dir_ln
-    .hash = AES_IV_SIZE + 22
+    .parts_block_size = AES_IV_SIZE + 16,
+    .parts_count = AES_IV_SIZE + 20,
+    .parts_rest = AES_IV_SIZE + 24,
+    .base_name_ln = AES_IV_SIZE + 28,
+    .sub_dir_ln = AES_IV_SIZE + 30,
+    .hash_ln = AES_IV_SIZE + 32,
+    .sub_dir = AES_IV_SIZE + 34,
+    .base_name = AES_IV_SIZE + 34, // + sub_dir_ln
+    .hash = AES_IV_SIZE + 34
 };
 #elif defined(_32BIT)
 FsFileHeaderOffsets fs_f_header_offsets = {
     .garbage = 0,
     .type = AES_IV_SIZE + 0,
     .file_size = AES_IV_SIZE + 8,
-    .base_name_ln = AES_IV_SIZE + 12,
-    .sub_dir_ln = AES_IV_SIZE + 14,
-    .hash_ln = AES_IV_SIZE + 16,
-    .sub_dir = AES_IV_SIZE + 18,
-    .base_name = AES_IV_SIZE + 18, // + sub_dir_ln
-    .hash = AES_IV_SIZE + 18
+    .parts_block_size = AES_IV_SIZE + 12,
+    .parts_count = AES_IV_SIZE + 16,
+    .parts_rest = AES_IV_SIZE + 20,
+    .base_name_ln = AES_IV_SIZE + 24,
+    .sub_dir_ln = AES_IV_SIZE + 26,
+    .hash_ln = AES_IV_SIZE + 28,
+    .sub_dir = AES_IV_SIZE + 30,
+    .base_name = AES_IV_SIZE + 30, // + sub_dir_ln
+    .hash = AES_IV_SIZE + 30
 };
 #endif
 
@@ -109,6 +114,9 @@ size_t saveFsFileHeader(
     memcpy(&buffer[fs_f_header_offsets.garbage], &(h->garbage), AES_IV_SIZE);
     memcpy(&buffer[fs_f_header_offsets.type], &type, sizeof(h->type));
     memcpy(&buffer[fs_f_header_offsets.file_size], &(h->file_size), sizeof(h->file_size));
+    memcpy(&buffer[fs_f_header_offsets.parts_block_size], &(h->parts_block_size), sizeof(h->parts_block_size));
+    memcpy(&buffer[fs_f_header_offsets.parts_count], &(h->parts_count), sizeof(h->parts_count));
+    memcpy(&buffer[fs_f_header_offsets.parts_rest], &(h->parts_rest), sizeof(h->parts_rest));
     memcpy(&buffer[fs_f_header_offsets.base_name_ln], &(h->base_name_ln), sizeof(h->base_name_ln));
     memcpy(&buffer[fs_f_header_offsets.sub_dir_ln], &(h->sub_dir_ln), sizeof(h->sub_dir_ln));
     memcpy(&buffer[fs_f_header_offsets.hash_ln], &(h->hash_ln), sizeof(h->hash_ln));
@@ -145,6 +153,9 @@ void loadFsFileHeader(
     //memcpy(&(h->garbage), &buffer[fs_f_header_offsets.garbage], AES_IV_SIZE);
     memcpy(&(h->type), &buffer[fs_f_header_offsets.type], sizeof(h->type));
     memcpy(&(h->file_size), &buffer[fs_f_header_offsets.file_size], sizeof(h->file_size));
+    memcpy(&(h->parts_block_size), &buffer[fs_f_header_offsets.parts_block_size], sizeof(h->parts_block_size));
+    memcpy(&(h->parts_count), &buffer[fs_f_header_offsets.parts_count], sizeof(h->parts_count));
+    memcpy(&(h->parts_rest), &buffer[fs_f_header_offsets.parts_rest], sizeof(h->parts_rest));
     memcpy(&(h->base_name_ln), &buffer[fs_f_header_offsets.base_name_ln], sizeof(h->base_name_ln));
     if (h->base_name_ln >= base_name_size)
         h->base_name_ln = base_name_size - 1;
@@ -170,6 +181,9 @@ void printFsFileHeader(
 )
 {
     printf("%sfile_size: 0x%zx\n", prefix, h->file_size);
+    printf("%spartsBlockSize: 0x%x\n", prefix, h->parts_block_size);
+    printf("%spartsNr: 0x%x\n", prefix, h->parts_count);
+    printf("%spartsRest: 0x%x\n", prefix, h->parts_rest);
     printf("%ssub_dir: %.*s (0x%x)\n", prefix, h->sub_dir_ln, h->sub_dir, h->sub_dir_ln);
     printf("%sbase_name: %s (0x%x)\n", prefix, h->base_name, h->base_name_ln);
     if ( h->hash_ln > 0 )
@@ -224,7 +238,9 @@ int loadFsAnswer(uint8_t* buffer, uint32_t buffer_size, PFsAnswer a)
 {
     if ( buffer_size < fs_answer_offsets.state+sizeof(a->state) )
     {
-        debug_info("loadFsAnswer::buffer size too small: 0x%x < 0x%x\n", buffer_size, (uint32_t)(fs_answer_offsets.state+sizeof(a->state)));
+#ifdef DEBUG_PRINT
+        printf("loadFsAnswer::buffer size too small: 0x%x < 0x%x\n", buffer_size, (uint32_t)(fs_answer_offsets.state+sizeof(a->state)));
+#endif
         return -1;
     }
     //memcpy(&(a->garbage), &buffer[fs_answer_offsets.garbage], AES_IV_SIZE);

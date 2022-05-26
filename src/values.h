@@ -1,7 +1,7 @@
 #ifndef SHARED_VALUES_H
 #define SHARED_VALUES_H
 
-#define BUFFER_SIZE (0x1000)
+#define BUFFER_SIZE (PAGE_SIZE)
 
 #define AES_SECRET_SIZE (0x20)
 

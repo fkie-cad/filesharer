@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "../../winDefs.h"
+#include "../../print.h"
 #include "../../winErrPrint.h"
 
 
@@ -27,9 +28,7 @@ int AES_init(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptOpenAlgorithmProvider\n", status);
-#endif
+        EPrint(status, "BCryptOpenAlgorithmProvider\n");
         return -1;
     }
 
@@ -44,10 +43,8 @@ int AES_init(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): get block length\n", status);
+        EPrint(status, "get block length\n");
         PrintCSBackupAPIErrorMessage(status);
-#endif
         ctxt->block_size = 0;
         return -1;
     }
@@ -62,10 +59,8 @@ int AES_init(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): set chain mode\n", status);
+        EPrint(status, "set chain mode\n");
         PrintCSBackupAPIErrorMessage(status);
-#endif
         return -1;
     }
 
@@ -92,9 +87,7 @@ int AES_generateKey(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptGetProperty\n", status);
-#endif
+        EPrint(status, "BCryptGetProperty\n");
         goto clean;
     }
 
@@ -102,10 +95,8 @@ int AES_generateKey(
     ctxt->key_obj = (PUCHAR)HeapAlloc(GetProcessHeap(), 0, ctxt->key_obj_ln);
     if( ctxt->key_obj == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): HeapAlloc\n", GetLastError());
+        EPrint(GetLastError(), "HeapAlloc\n");
         PrintCSBackupAPIErrorMessage(GetLastError());
-#endif
         status = STATUS_NO_MEMORY;
         goto clean;
     }
@@ -122,16 +113,34 @@ int AES_generateKey(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptGenerateSymmetricKey\n", status);
+        EPrint(status, "BCryptGenerateSymmetricKey\n");
         PrintCSBackupAPIErrorMessage(status);
-#endif
         goto clean;
     }
 
 clean:
     ;
     return (int)status;
+}
+
+BOOLEAN buffersAreOverlapping(PVOID Buffer1, ULONG Buffer1Size, PVOID Buffer2, ULONG Buffer2Size, BOOLEAN mayBeEqual)
+{
+    SIZE_T Address1 = (SIZE_T)Buffer1;
+    SIZE_T Address2 = (SIZE_T)Buffer2;
+
+    if ( Buffer1 == NULL || Buffer2 == NULL )
+        return FALSE;
+    if ( Address1 == Address2 )
+        return !mayBeEqual;
+
+    if ( Address1 < Address2 )
+    {
+        return !(Address1 + Buffer1Size <= Address2);
+    }
+    else
+    {
+        return !(Address2 + Buffer2Size <= Address1);
+    }
 }
 
 int AES_encrypt(
@@ -145,18 +154,22 @@ int AES_encrypt(
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
-    PUCHAR ivt = NULL;
+    UCHAR ivt[AES_STD_BLOCK_SIZE];
     ULONG size;
     
-    // copy iv, because it will be consumed during encryption
-    ivt = (PUCHAR)HeapAlloc(GetProcessHeap(), 0, iv_ln);
-    if ( ivt == NULL )
+    // check if buffers are overlapping
+    if ( buffersAreOverlapping(plain, plain_ln, *encrypted, *encrypted_ln, TRUE) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): HeapAlloc ivt\n", GetLastError());
-        PrintCSBackupAPIErrorMessage(GetLastError());
-#endif
-        status = STATUS_NO_MEMORY;
+        status = STATUS_BUFFER_OVERFLOW; // is there better status??
+        EPrint(status, "Buffers are overlapping\n");
+        goto clean;
+    }
+    
+    // copy iv, because it will be consumed during encryption
+    if ( iv_ln != AES_STD_BLOCK_SIZE )
+    {
+        status = STATUS_UNSUCCESSFUL;
+        EPrint(status, "unknown size of IV\n");
         goto clean;
     }
     memcpy(ivt, iv, iv_ln);
@@ -176,9 +189,7 @@ int AES_encrypt(
     );
     if( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptEncrypt get size\n", status);
-#endif
+        EPrint(status, "BCryptEncrypt get size\n");
         goto clean;
     }
     
@@ -187,10 +198,8 @@ int AES_encrypt(
         *encrypted = (PUCHAR)malloc(size);
         if ( *encrypted == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", GetLastError());
+            EPrint(GetLastError(), "malloc out buffer\n");
             PrintCSBackupAPIErrorMessage(GetLastError());
-#endif
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -199,9 +208,7 @@ int AES_encrypt(
     {
         if ( size > *encrypted_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided encryption buffer[0x%x] is too small! 0x%x needed.\n", *encrypted_ln, size);
-#endif
+            EPrint(-1, "Provided encryption buffer[0x%x] is too small! 0x%x needed.\n", *encrypted_ln, size);
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -227,16 +234,13 @@ int AES_encrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptEncrypt\n", status);
+        EPrint(status, "BCryptEncrypt\n");
         PrintCSBackupAPIErrorMessage(status);
-#endif
         goto clean;
     }
 
 clean:
-    if ( ivt != NULL )
-        HeapFree(GetProcessHeap(), 0, ivt);
+    ;
 
     return (int)status;
 }
@@ -252,46 +256,51 @@ int AES_decrypt(
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
-    PUCHAR ivt = NULL;
-    ULONG size;
+    UCHAR ivt[AES_STD_BLOCK_SIZE];
+    ULONG size = encrypted_ln;
+    
+    // check if buffers are overlapping
+    if ( buffersAreOverlapping(encrypted, encrypted_ln, *plain, *plain_ln, TRUE) )
+    {
+        status = STATUS_BUFFER_OVERFLOW; // is there better status??
+        EPrint(status, "Buffers are overlapping\n");
+        goto clean;
+    }
     
     // copy iv, because it will be consumed during encryption
-    ivt = (PUCHAR)HeapAlloc(GetProcessHeap(), 0, iv_ln);
-    if ( ivt == NULL )
+    if ( iv_ln != AES_STD_BLOCK_SIZE )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): HeapAlloc ivt\n", GetLastError());
-        PrintCSBackupAPIErrorMessage(GetLastError());
-#endif
-        status = STATUS_NO_MEMORY;
+        status = STATUS_UNSUCCESSFUL;
+        EPrint(status, "unknown size of IV\n");
         goto clean;
     }
     memcpy(ivt, iv, iv_ln);
     
     // Get the output buffer size.
-    status = BCryptDecrypt(
-        ctxt->key, 
-        encrypted, 
-        encrypted_ln, 
-        NULL,
-        ivt,
-        ctxt->block_size,
-        NULL, 
-        0, 
-        &size, 
-        BCRYPT_BLOCK_PADDING
-    );
-    if ( !NT_SUCCESS(status) )
-    {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptDecrypt get size\n", status);
-        PrintCSBackupAPIErrorMessage(status);
-#endif
-        goto clean;
-    }
-#ifdef DEBUG_PRINT
-    printf("required_size: 0x%x\n", size);
-#endif
+    // Not needed, size will be encrypted_ln
+//    status = BCryptDecrypt(
+//        ctxt->key, 
+//        encrypted, 
+//        encrypted_ln, 
+//        NULL,
+//        ivt,
+//        ctxt->block_size,
+//        NULL, 
+//        0, 
+//        &size, 
+//        BCRYPT_BLOCK_PADDING
+//    );
+//    if ( !NT_SUCCESS(status) )
+//    {
+//#ifdef ERROR_PRINT
+//        printf("BCryptDecrypt get size\n", status);
+//        PrintCSBackupAPIErrorMessage(status);
+//#endif
+//        goto clean;
+//    }
+//#ifdef DEBUG_PRINT
+//    printf("required_size: 0x%x\n", size);
+//#endif
     
     if ( *plain == NULL )
     {
@@ -299,7 +308,7 @@ int AES_decrypt(
         if ( *plain == NULL )
         {
 #ifdef ERROR_PRINT
-            printf("Error (0x%x): malloc out buffer\n", GetLastError());
+            EPrint(GetLastError(), "malloc out buffer\n");
             PrintCSBackupAPIErrorMessage(GetLastError());
 #endif
             status = STATUS_NO_MEMORY;
@@ -310,10 +319,8 @@ int AES_decrypt(
     {
         if ( size > *plain_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *plain_ln, size);
-#endif
             status = STATUS_NO_MEMORY;
+            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *plain_ln, size);
             goto clean;
         }
     }
@@ -336,16 +343,13 @@ int AES_decrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): BCryptDecrypt\n", status);
+        EPrint(status, "BCryptDecrypt\n");
         PrintCSBackupAPIErrorMessage(status);
-#endif
         goto clean;
     }
 
 clean:
-    if ( ivt != NULL )
-        HeapFree(GetProcessHeap(), 0, ivt);
+    ;
 
     return (int)status;
 }

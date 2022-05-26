@@ -15,6 +15,9 @@
 
 void cropTrailingSlash(char* path)
 {
+    if ( path == NULL )
+        return;
+    
     size_t n = strlen(path);
     if ( n == 0 )
         return;
@@ -28,6 +31,9 @@ void cropTrailingSlash(char* path)
 
 void convertPathSeparator(char* path)
 {
+    if ( path == NULL )
+        return;
+    
     size_t n = strlen(path);
     if ( n == 0 )
         return;
@@ -59,6 +65,8 @@ int getFileSize(
 #else
     struct stat stat_buf;
 #endif
+    if ( path == NULL )
+        return 0;
     memset(&stat_buf, 0, sizeof(stat_buf));
     errno = 0;
     int rc = stat(path, &stat_buf);
@@ -80,6 +88,8 @@ int fileExists(const char* path)
 #else
     struct stat s;
 #endif
+    if ( path == NULL )
+        return 0;
     if ( stat(path, &s) == 0 )
     {
         if ( s.st_mode & S_IFREG )
@@ -96,6 +106,8 @@ int dirExists(const char* path)
 #else
     struct stat s;
 #endif
+    if ( path == NULL )
+        return 0;
     if (stat(path, &s) == 0 )
     {
         if ( s.st_mode & S_IFDIR )
@@ -121,7 +133,6 @@ size_t getBaseName(
 {
     if ( file_path == 0 || file_path[0] == 0 || file_path_ln == 0 || base_name == NULL )
     {
-        *base_name = NULL;
         return 0;
     }
 

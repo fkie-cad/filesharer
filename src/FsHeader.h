@@ -24,6 +24,7 @@
 #define FS_TYPE_SIG_HEADER (0x525554414E474953)
 #define FS_TYPE_ANSWER (0x0000524557534E41)
 
+
 // prevent padding
 #if defined(_WIN32)
 #pragma pack(1)
@@ -50,11 +51,14 @@ typedef struct FsKeyHeaderOffsets {
 extern FsKeyHeaderOffsets fs_key_header_offsets;
 
 // add initial random garbage to reuse IV
-// could be sha256 and the checked
+// could be sha256 and then checked
 typedef struct FsFileHeader {
     uint8_t garbage[AES_IV_SIZE];
     uint64_t type;
     size_t file_size;
+    uint32_t parts_block_size;
+    uint32_t parts_count;
+    uint32_t parts_rest;
     uint16_t base_name_ln;
     uint16_t sub_dir_ln;
     uint16_t hash_ln;
@@ -67,6 +71,9 @@ typedef struct FsFileHeaderOffsets {
     uint16_t garbage;
     uint16_t type;
     uint16_t file_size;
+    uint16_t parts_block_size;
+    uint16_t parts_count;
+    uint32_t parts_rest;
     uint16_t base_name_ln;
     uint16_t sub_dir_ln;
     uint16_t hash_ln;

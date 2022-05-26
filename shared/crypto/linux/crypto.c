@@ -321,3 +321,17 @@ int delete_AESKey()
 {
     return AES_deleteKey(&aes_ctxt);
 }
+
+int rotate64Iv(uint8_t* iv, uint32_t id)
+{
+    int s = 0;
+
+    int shift = id % 64; // 0 - 63
+    uint32_t part = id / 64; // 0 - x
+    part = part % (AES_IV_SIZE / 0x8); // 0 - 1
+    uint64_t* ptr = (uint64_t*)iv;
+
+    ptr[part] = _rotl64(ptr[part], shift);
+
+    return s;
+}
