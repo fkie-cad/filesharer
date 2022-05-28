@@ -21,9 +21,9 @@ Last changed: 25.05.2022
 
 ## Requirements
 ### Linux ###
-- Openssl library
 - gcc
 - [cmake]
+- Openssl library
 
 ### Windows ###
 - msbuild 
@@ -37,13 +37,13 @@ Last changed: 25.05.2022
 $ winBuild.bat [/app] [/m <Release|Debug>] [/b <32|64>] [/rtl] [/pdb] [/bt <path>] [/pts <PlatformToolset>] [/h]
 ```
 
-The PlatformToolset defaults to "v142but may be changed with the `/pts` option.
-"v142" is used for VS 2019 version, "v143" would be used in VS 2022, 
+The PlatformToolset defaults to "v142" but may be changed with the `/pts` option.
+"v142" is used for VS 2019, "v143" would be used in VS 2022, 
 or you could also use "WindowsApplicationForDrivers10.0" with WDK10 installed.
 
 ### Runtime Errors (Windows)
 If a "VCRUNTIMExxx.dll not found Error" occurs on the target system, statically including the runtime libraries is a solution.  
-This is done by using the `/p:RunTimeLib=Debug|Release` (msbuild) or `[/rtl]` (winBuild) flags.
+This is done by using the `/p:RunTimeLib=Debug|Release` (msbuild) or `/rtl` (winBuild.bat) flag.
 
 
 ### Linux gcc + cmake 
@@ -54,7 +54,7 @@ $ ./linuxBuild.sh [-t app] [-m Debug|Release] [-h]
 ### Linux gcc plain
 ```bash
 $ mkdir build
-$ gcc -o build/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lcrypto src/fshare.c src/client.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
+$ gcc -o build/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lcrypto src/fshare.c src/client.c src/server.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
 ```
 Use `clang` instead of `gcc` in Termux on Android.
 
@@ -72,8 +72,10 @@ Usage: FShare -m <mode> [-i <ip>] -p <port> [-v <version>] [-k <path>] [-c] [-r]
 - -v: IP version 4 (default) or 6.
 - -k: Path to an SSL key file to encrypt or decrypt data.
       The server has to use the private key, the client the public key.
+
 **Server only options:**
 - path: The existing target base directory, the shared files are stored in.
+
 **Client only options:**
 - -c : Check file hashes of transmitted files. 
        Set by default, if transferred encrypted.
@@ -153,6 +155,11 @@ Integrity checks for the headers and maybe the answers as well will be added in 
 ```bash
 $ openssl ...
 ```
+
+
+### Questions, bugs, problems, issues
+Feel free to open an issue.
+
 
 
 ## COPYRIGHT, CREDITS & CONTACT ## 

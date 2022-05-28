@@ -94,11 +94,11 @@ GOTO :ParseParams
 
     :: set platform
     set /a valid=0
-    if [%bitness%] == [32] (
+    if %bitness% == 32 (
         set platform=x86
         set /a valid=1
     ) else (
-        if [%bitness%] == [64] (
+        if %bitness% == 64 (
             set platform=x64
             set /a valid=1
         )
@@ -187,7 +187,7 @@ GOTO :ParseParams
 
 :usage
     echo Usage: %my_name% [/app] [/b ^<bitness^>] [/m ^<mode^>] [/rtl] [/pdb] [/pts ^<toolset^>] [/bt ^<path^>] [/v] [/h]
-    echo Default: %my_name% [/t app /b %bitness% /m %mode% /bt %buildTools%]
+    echo Default: %my_name% [/t app /b %bitness% /m %mode% /bt %buildTools% /pts %pts%]
     exit /B 0
 
 :help

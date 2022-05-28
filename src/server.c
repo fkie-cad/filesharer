@@ -124,6 +124,7 @@ static uint8_t gBuffer[BUFFER_SIZE];
 static int running = 0;
 
 
+
 int __cdecl runServer(
     int argc, 
     char** argv,
@@ -618,6 +619,8 @@ int handleData(
 
             *data_state = (is_encrypted) ? DATA_STATE_KEY_HEADER : DATA_STATE_FILE_HEADER;
             memset(key_header, 0, sizeof(*key_header)); 
+
+            // send "hash-correct" answer ??
 
             printf("Ready for next\n");
             printf("\n");
