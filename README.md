@@ -15,8 +15,8 @@ Compiles and runs under
 
 
 ## Version ##
-1.4.0  
-Last changed: 25.05.2022
+1.4.1  
+Last changed: 09.06.2022
 
 
 ## Requirements
@@ -60,15 +60,12 @@ Use `clang` instead of `gcc` in Termux on Android.
 
 ## Usage
 ```bash
-Usage: FShare -m <mode> [-i <ip>] -p <port> [-v <version>] [-k <path>] [-c] [-r] [-f] [-s <size>] path [...]
+Usage: FShare -recv <port>|-send <ip> <port> [-v <version>] [-k <path>] [-c] [-r] [-f] [-s <size>] path [...]
 ```
 
 **Options**
-- -m: Share mode: 
-      receiving server (s) or sending client (c).
-- -i: The server ip. 
-      Not necessary in server mode.
-- -p: The server listening port.
+- -recv: receiving server on `<port>`.
+- -send: sending client to `<ip>` on `<port>`.
 - -v: IP version 4 (default) or 6.
 - -k: Path to an SSL key file to encrypt or decrypt data.
       The server has to use the private key, the client the public key.
@@ -91,22 +88,22 @@ Usage: FShare -m <mode> [-i <ip>] -p <port> [-v <version>] [-k <path>] [-c] [-r]
 ## Examples:
 Run plain server with ipv4 and save files in "files/"
 ```bash
-$ FShare -m s -p 1234 files/
+$ FShare -recv 1234 files/
 ```
 
 Run encrypted server with ipv6 and save files in "files/"
 ```bash
-$ FShare -m s -p 1234 -v 6 -k .ssl/priv.key files/
+$ FShare -recv 1234 -v 6 -k .ssl/priv.key files/
 ```
 
 Run plain ipv4 client, sending files file1 and file2 and checking the hashes
 ```bash
-$ FShare -m c -i 127.0.0.1 -p 1234 -c file1 file2
+$ FShare -send 127.0.0.1 1234 -c file1 file2
 ```
 
 Run encrypted ipv6 client, sending the directory "files" recursively
 ```bash
-$ FShare -m c -i 127.0.0.1 -p 1234 -v 6 -c -k .ssl/pub.key -r files
+$ FShare -send 127.0.0.1 1234 -v 6 -c -k .ssl/pub.key -r files
 ```
 
 Obviously, if the server expects encrypted files, the client has to send encrypted files.

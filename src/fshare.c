@@ -139,7 +139,7 @@ int __cdecl main(int argc, char* argv[])
         printUsage();
         return -1;
     }
-
+    
     s = checkParams(flags, ip, port, family, key_path);
     if ( s != 0 )
     {
@@ -226,7 +226,9 @@ clean:
 }
 
 
-#define IS_SC_ARG(_a_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] != 0 && _a_[2] == 0 )
+//#define IS_SC_ARG(_a_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] != 0 && _a_[2] == 0 )
+#define IS_SC_ARG(_a_, _v_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] == _v_ && _a_[2] == 0 )
+#define IS_4C_ARG(_a_, _v_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] == _v_[0] && _a_[2] == _v_[1] && _a_[3] == _v_[2] && _a_[4] == _v_[3] && _a_[5] == 0 )
 int parseParams(
     int argc, 
     char** argv, 
@@ -240,88 +242,96 @@ int parseParams(
 )
 {
     int i;
-    char* arg;
-    char* val;
+    char* arg = NULL;
+    char* val1 = NULL;
+    char* val2 = NULL;
     int ipv;
 
     for ( i = *start_i; i < argc; i++ )
     {
         arg = argv[i];
-        val = ( i < argc - 1 ) ? argv[i+1] : NULL;
+        val1 = ( i < argc - 1 ) ? argv[i+1] : NULL;
+        val2 = ( i < argc - 2 ) ? argv[i+2] : NULL;
 
-        if ( !IS_SC_ARG(arg) )
-        {
-            DPrint("Not an arg: %s\n", arg);
-            break;
-        }
-
-
-        if ( arg[1] == 'c' )
+        //if ( !IS_SC_ARG(arg) )
+        //{
+        //    DPrint("Not an arg: %s\n", arg);
+        //    break;
+        //}
+        
+        if ( IS_SC_ARG(arg, 'c') )
         {
             *flags |= FLAG_CHECK_FILE_HASH;
         }
-        else if ( arg[1] == 'i' )
+        else if ( IS_SC_ARG(arg, 'm') )
         {
-            if ( val == NULL )
+            if ( val1 == NULL )
                 break;
 
-            *ip = val;
-            i++;
-        }
-        else if ( arg[1] == 'm' )
-        {
-            if ( val == NULL )
-                break;
-
-            if ( val[0] == 's' && val[1] == 0 )
+            if ( val1[0] == 's' && val1[1] == 0 )
                 *flags |= FLAG_SERVER;
-            else if ( val[0] == 'c' && val[1] == 0 )
+            else if ( val1[0] == 'c' && val1[1] == 0 )
                 *flags |= FLAG_CLIENT;
 
             i++;
         }
-        else if (arg[1] == 'f')
+        else if ( IS_4C_ARG(arg, "recv") )
+        {
+            if ( val1 == NULL )
+                break;
+
+            *port = val1;
+
+            *flags |= FLAG_SERVER;
+
+            i++;
+        }
+        else if ( IS_4C_ARG(arg, "send") )
+        {
+            if ( val1 == NULL || val2 == NULL )
+                break;
+
+            *ip = val1;
+            *port = val2;
+
+            *flags |= FLAG_CLIENT;
+
+            i++;
+            i++;
+        }
+        else if ( IS_SC_ARG(arg, 'f') )
         {
             *flags |= FLAG_FLAT_COPY;
         }
-        else if (arg[1] == 'k')
+        else if ( IS_SC_ARG(arg, 'k') )
         {
-            if ( val == NULL )
+            if ( val1 == NULL )
                 break;
 
-            *key_path = val;
+            *key_path = val1;
             *flags |= FLAG_ENCRYPTED | FLAG_CHECK_FILE_HASH;
 
             i++;
         }
-        else if ( arg[1] == 'p' )
-        {
-            if ( val == NULL )
-                break;
-
-            *port = val;
-
-            i++;
-        }
-        else if ( arg[1] == 'r' )
+        else if ( IS_SC_ARG(arg, 'r') )
         {
             *flags |= FLAG_RECURSIVE;
         }
-        else if ( arg[1] == 's' )
+        else if ( IS_SC_ARG(arg, 's') )
         {
-            if ( val == NULL )
+            if ( val1 == NULL )
                 break;
 
-            *block_size = strtoul(val, NULL, 0);
+            *block_size = strtoul(val1, NULL, 0);
 
             i++;
         }
-        else if ( arg[1] == 'v' )
+        else if ( IS_SC_ARG(arg, 'v') )
         {
-            if ( val == NULL )
+            if ( val1 == NULL )
                 break;
 
-            ipv = (int)strtoul(val, NULL, 0);
+            ipv = (int)strtoul(val1, NULL, 0);
             if ( ipv == 4 )
             {
                 *family = AF_INET;
@@ -336,10 +346,12 @@ int parseParams(
         else
         {
             DPrint("Unknown arg: %s\n", arg);
+            break;
         }
     }
     
     *start_i = i;
+
     if ( *start_i >= argc ) 
         return -1;
     return 0;
@@ -359,11 +371,10 @@ int checkParams(
     DPrint("flags: 0x%x\n", flags);
 
     uint16_t f = flags & (FLAG_SERVER|FLAG_CLIENT);
-    DPrint("f: 0x%x\n", f);
-    if ( (f & (f - 1)) != 0 )
+    if ( !f || (f & (f - 1)) != 0 )
     {
         s = -1;
-        EPrint(s, "No mode set. Either set server (s) or client (m) mode!\n");
+        EPrint(s, "No valid mode set. Either set server (s) or client (m) mode!\n");
     }
 
     if ( flags & FLAG_ENCRYPTED && key_path == NULL )
@@ -396,9 +407,8 @@ int checkParams(
 
 void printUsage()
 {
-    printf("Usage: %s %cm <mode> [%ci <ip>] %cp <port> [%cv <version>] [%ck <path>] [%cc] [%cr] [%cf] [%cs <size>] path [...]\n", 
+    printf("Usage: %s %csend <ip> <port>|%crecv <port> [%cv <version>] [%ck <path>] [%cc] [%cr] [%cf] [%cs <size>] path [...]\n", 
         APP_NAME, 
-        PARAM_IDENTIFIER, 
         PARAM_IDENTIFIER, 
         PARAM_IDENTIFIER, 
         PARAM_IDENTIFIER, 
@@ -423,9 +433,8 @@ void printHelp()
 
     printUsage();
     printf("\nOptions\n");
-    printf(" - %cm: Share mode: receiving server (s) or sending client (c).\n", PARAM_IDENTIFIER);
-    printf(" - %ci: The server ip. Not necessary in server mode.\n", PARAM_IDENTIFIER);
-    printf(" - %cp: The server listening port.\n", PARAM_IDENTIFIER);
+    printf(" - %crecv: receiving server on <port>.\n", PARAM_IDENTIFIER);
+    printf(" - %csend: sending client to <ip> on <port>).\n", PARAM_IDENTIFIER);
     printf(" - %cv: IP version 4 (default) or 6.\n", PARAM_IDENTIFIER);
     printf(" - %ck: Path to an SSL key.%s file to encrypt or decrypt data. "
            "The server has to use the private key, the client the public key.\n", 
@@ -447,21 +456,16 @@ void printHelp()
     printf(" - path : One or more paths to files or directories to be sent.\n");
     printf("\n");
     printf("Examples:\n");
-    printf(" - server: %s %cm s %cp 1234 %cv 4 %ck keys%cpriv.%s files%c\n", 
+    printf(" - server: %s %crecv 1234 %cv 4 %ck keys%cpriv.%s files%c\n", 
         APP_NAME, 
         PARAM_IDENTIFIER, 
         PARAM_IDENTIFIER, 
-        PARAM_IDENTIFIER, 
-        PARAM_IDENTIFIER, 
-        PATH_SEPARATOR, key_type, 
+        PARAM_IDENTIFIER, PATH_SEPARATOR, key_type, 
         PATH_SEPARATOR);
-    printf(" - client: %s %cm c %ci 127.0.0.1 %cp 1234 %cv 4 %ck keys%cpub.%s %cc file1 file2\n", 
+    printf(" - client: %s %csend 127.0.0.1 1234 %cv 4 %ck keys%cpub.%s %cc file1 file2\n", 
         APP_NAME, 
         PARAM_IDENTIFIER, 
         PARAM_IDENTIFIER, 
-        PARAM_IDENTIFIER, 
-        PARAM_IDENTIFIER, 
-        PARAM_IDENTIFIER, 
-        PATH_SEPARATOR, key_type, 
+        PARAM_IDENTIFIER, PATH_SEPARATOR, key_type, 
         PARAM_IDENTIFIER);
 }
