@@ -1,20 +1,19 @@
 #include "RSAOpenSSL.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
 #include <openssl/crypto.h>
 #include <openssl/err.h>
-#include <openssl/pem.h>
-//#include <openssl/rand.h>
+#include <openssl/decoder.h>
+//#include <openssl/encoder.h>
 #include <openssl/rsa.h>
 
+#include "../../print.h"
 
-//#define ERROR_PRINT
-//#define DEBUG_PRINT
-
+#define INPUT_TYPE "PEM"
+#define KEY_TYPE "RSA"
 
 int RSA_init(
     PRSA_CTXT ctxt
@@ -42,59 +41,70 @@ int RSA_importPubKeyFromFile(
     const char* path
 )
 {
-    int status = 0;
+    int s = 0;
+    int b;
     FILE *file = NULL;
-    RSA *key = NULL; // free in clean with evp_free
+    EVP_PKEY *pkey = NULL;
+    OSSL_DECODER_CTX *ectx = NULL;
+    const char *propq = NULL;
+    OSSL_LIB_CTX *libctx = NULL;
+
+    ectx = OSSL_DECODER_CTX_new_for_pkey(&pkey,
+                                         INPUT_TYPE,
+                                         NULL,
+                                         KEY_TYPE,
+                                         EVP_PKEY_PUBLIC_KEY,
+                                         libctx,
+                                         propq);
+    if ( ectx == NULL )
+    {
+        EPrint((int)ERR_get_error(), "OSSL_DECODER_CTX_new_for_pkey failed.\n");
+        return -1;
+    }
+    DPrint("pkey: %p\n", pkey);
+    DPrint("libctx: %p\n", libctx);
+//    if (pass != NULL)
+//        OSSL_ENCODER_CTX_set_passphrase(ectx, pass, strlen(pass));
 
     file = fopen(path, "rb");
     if ( !file )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): Loading PEM RSA Public Key File.\n", errno);
-#endif
-        status = -1;
+        EPrint(errno, "fopen \"%s\" failed.\n", path);
+        s = -1;
         goto clean;
     }
 
-    key = PEM_read_RSA_PUBKEY(file, &key, NULL, NULL);
-    if ( !key )
+    b = OSSL_DECODER_from_fp(ectx, file);
+    if ( !b )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%lx): loading RSA Public Key File.\n", ERR_get_error());
-#endif
-        ERR_print_errors_fp(stderr);
-        status = -2;
+        EPrint((int)ERR_get_error(), "OSSL_DECODER_from_fp failed.\n");
+        s = -1;
         goto clean;
     }
 
-    ctxt->pub_key = EVP_PKEY_new();
-    status = EVP_PKEY_assign_RSA(ctxt->pub_key, key);
-    if ( status != 1 )
-    {
-#ifdef ERROR_PRINT
-        printf("Error (0x%lx): EVP_PKEY_assign_RSA failed.\n", ERR_get_error());
-#endif
-        status = -3;
-        goto clean;
-    }
-    else
-    {
-        status = 0;
-    }
+    ctxt->pub_key = pkey;
+    s = 0;
 
     ctxt->pub_ctx = EVP_PKEY_CTX_new(ctxt->pub_key, NULL);
     if ( ctxt->pub_ctx == NULL )
     {
-        printf("Error (0x%lx): EVP_PKEY_CTX_new failed.\n", ERR_get_error());
-        status = -4;
+        EPrint((int)ERR_get_error(), "EVP_PKEY_CTX_new failed.\n");
+        s = -4;
         goto clean;
     }
+    DPrint("pub_ctx: %p\n", ctxt->pub_ctx);
 
 clean:
     if ( file )
         fclose(file);
+    if ( ectx )
+        OSSL_DECODER_CTX_free(ectx);
+    if ( libctx )
+        OSSL_LIB_CTX_free(libctx);
+    if ( s != 0 && pkey )
+        EVP_PKEY_free(pkey);
 
-    return (int)status;
+    return s;
 }
 
 int RSA_exportPubKeyToDER(
@@ -131,61 +141,77 @@ int RSA_importPrivKeyFromFile(
     const char* path
 )
 {
-    int status = 0;
+    int s = 0;
+    int b;
     FILE *file = NULL;
-    RSA *key = NULL; // free in clean with evp_free
+    EVP_PKEY *pkey = NULL;
+    OSSL_DECODER_CTX *ectx = NULL;
+    const char *propq = NULL;
+    OSSL_LIB_CTX *libctx = NULL;
+
+    ectx = OSSL_DECODER_CTX_new_for_pkey(&pkey,
+                                         INPUT_TYPE,
+                                         NULL,
+                                         KEY_TYPE,
+                                         EVP_PKEY_KEYPAIR,
+                                         libctx,
+                                         propq);
+    if ( ectx == NULL )
+    {
+        EPrint((int)ERR_get_error(), "OSSL_DECODER_CTX_new_for_pkey failed.\n");
+        return -1;
+    }
+    DPrint("pkey: %p\n", pkey);
+    DPrint("libctx: %p\n", libctx);
+
+//    if (passphrase != NULL) {
+//        if (OSSL_DECODER_CTX_set_passphrase(dctx,
+//                                            (const unsigned char *)passphrase,
+//                                            strlen(passphrase)) == 0) {
+//            fprintf(stderr, "OSSL_DECODER_CTX_set_passphrase() failed\n");
+//            goto cleanup;
+//        }
+//    }
 
     file = fopen(path, "rb");
     if ( !file )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%x): Loading PEM RSA Private Key File.\n", errno);
-#endif
-        status = -1;
+        EPrint(errno, "fopen \"%s\" failed.\n", path);
+        s = -1;
         goto clean;
     }
 
-    key = PEM_read_RSAPrivateKey(file, &key, pass_cb, NULL);
-    if ( !key )
+    b = OSSL_DECODER_from_fp(ectx, file);
+    if ( !b )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%lx): loading RSA Private Key File.\n", ERR_get_error());
-#endif
-        ERR_print_errors_fp(stderr);
-        status = -2;
+        EPrint((int)ERR_get_error(), "OSSL_DECODER_from_fp failed.\n");
+        s = -1;
         goto clean;
     }
 
-    ctxt->priv_key = EVP_PKEY_new();
-    status = EVP_PKEY_assign_RSA(ctxt->priv_key, key);
-    if ( status != 1 )
-    {
-#ifdef ERROR_PRINT
-        printf("Error (0x%lx): EVP_PKEY_assign_RSA failed.\n", ERR_get_error());
-#endif
-        status = -3;
-        goto clean;
-    }
-    else
-    {
-        status = 0;
-    }
+    ctxt->priv_key = pkey;
+    s = 0;
 
     ctxt->priv_ctx = EVP_PKEY_CTX_new(ctxt->priv_key, NULL);
     if ( ctxt->priv_ctx == NULL )
     {
-#ifdef ERROR_PRINT
-        printf("Error (0x%lx): EVP_PKEY_CTX_new failed.\n", ERR_get_error());
-#endif
-        status = -4;
+        EPrint((int)ERR_get_error(), "EVP_PKEY_CTX_new failed.\n");
+        s = -4;
         goto clean;
     }
+    DPrint("priv_ctx: %p\n", ctxt->priv_ctx);
 
 clean:
     if ( file )
         fclose(file);
+    if ( ectx )
+        OSSL_DECODER_CTX_free(ectx);
+    if ( libctx )
+        OSSL_LIB_CTX_free(libctx);
+    if ( s != 0 && pkey )
+        EVP_PKEY_free(pkey);
 
-    return (int)status;
+    return s;
 }
 
 int RSA_exportPrivKeyToDER(
@@ -213,9 +239,7 @@ int RSA_encrypt(
     status = EVP_PKEY_encrypt_init(ctxt->pub_ctx);
     if ( status != 1 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): EVP_PKEY_encrypt_init failed.\n", ERR_get_error());
-#endif
+        EPrint((int)ERR_get_error(), "EVP_PKEY_encrypt_init failed.\n");
         status = -1;
         goto clean;
     }
@@ -223,9 +247,7 @@ int RSA_encrypt(
     status = EVP_PKEY_CTX_set_rsa_padding(ctxt->pub_ctx, ctxt->padding);
     if ( status != 1 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): EVP_PKEY_CTX_set_rsa_padding failed.\n", ERR_get_error());
-#endif
+        EPrint((int)ERR_get_error(), "EVP_PKEY_CTX_set_rsa_padding failed.\n");
         status = -1;
         goto clean;
     }
@@ -234,9 +256,7 @@ int RSA_encrypt(
     status = EVP_PKEY_encrypt(ctxt->pub_ctx, NULL, &req_size, plain, plain_ln);
     if ( status != 1 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): EVP_PKEY_encrypt get size failed.\n", ERR_get_error());
-#endif
+        EPrint((int)ERR_get_error(), "VP_PKEY_encrypt get size failed.\n");
         status = -2;
         goto clean;
     }
@@ -247,9 +267,7 @@ int RSA_encrypt(
         *encrypted = (uint8_t*)OPENSSL_malloc(req_size);
         if ( *encrypted == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): OPENSSL_malloc out buffer\n", errno);
-#endif
+            EPrint(errno, "OPENSSL_malloc out failed.\n");
             status = -3;
             goto clean;
         }
@@ -258,9 +276,7 @@ int RSA_encrypt(
     {
         if ( req_size > *encrypted_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided encryption buffer[0x%x] is too small! 0x%zx needed.\n", *encrypted_ln, req_size);
-#endif
+            EPrint(-1, "Error: Provided encryption buffer[0x%x] is too small! 0x%zx needed.\n", *encrypted_ln, req_size);
             status = -3;
             goto clean;
         }
@@ -269,7 +285,7 @@ int RSA_encrypt(
     status = EVP_PKEY_encrypt(ctxt->pub_ctx, *encrypted, &req_size, plain, plain_ln);
     if ( status != 1 )
     {
-        printf("ERROR (0x%lx): EVP_PKEY_CTX_set_rsa_padding failed.\n", ERR_get_error());
+        EPrint((int)ERR_get_error(), "EVP_PKEY_CTX_set_rsa_padding failed.\n");
         status = -4;
         goto clean;
     }
@@ -296,9 +312,7 @@ int RSA_decrypt(
     status = EVP_PKEY_decrypt_init(ctxt->priv_ctx);
     if ( status != 1 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): EVP_PKEY_decrypt_init failed.\n", ERR_get_error());
-#endif
+        EPrint((int)ERR_get_error(), "EVP_PKEY_decrypt_init failed.\n");
         status = -1;
         goto clean;
     }
@@ -306,9 +320,7 @@ int RSA_decrypt(
     status = EVP_PKEY_CTX_set_rsa_padding(ctxt->priv_ctx, ctxt->padding);
     if ( status != 1 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): EVP_PKEY_CTX_set_rsa_padding failed.\n", ERR_get_error());
-#endif
+        EPrint((int)ERR_get_error(), "EVP_PKEY_CTX_set_rsa_padding failed.\n");
         status = -2;
         goto clean;
     }
@@ -317,9 +329,7 @@ int RSA_decrypt(
     status = EVP_PKEY_decrypt(ctxt->priv_ctx, NULL, &req_size, encrypted, encrypted_ln);
     if ( status != 1 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): EVP_PKEY_decrypt get size failed.\n", ERR_get_error());
-#endif
+        EPrint((int)ERR_get_error(), "EVP_PKEY_decrypt get size failed.\n");
         status = -3;
         goto clean;
     }
@@ -330,9 +340,7 @@ int RSA_decrypt(
         *plain = (uint8_t*)OPENSSL_malloc(req_size);
         if ( *plain == NULL )
         {
-#ifdef ERROR_PRINT
-            printf("Error (0x%x): OPENSSL_malloc decryption buffer\n", errno);
-#endif
+            EPrint(errno, "OPENSSL_malloc decryption failed.\n");
             status = -4;
             goto clean;
         }
@@ -341,9 +349,7 @@ int RSA_decrypt(
     {
         if ( req_size > *plain_ln )
         {
-#ifdef ERROR_PRINT
-            printf("Error: Provided decryption buffer[0x%x] is too small! 0x%zx needed.\n", *plain_ln, req_size);
-#endif
+            EPrint(-1, "Provided decryption buffer[0x%x] is too small! 0x%zx needed.\n", *plain_ln, req_size);
             status = -4;
             goto clean;
         }
@@ -352,9 +358,7 @@ int RSA_decrypt(
     status = EVP_PKEY_decrypt(ctxt->priv_ctx, *plain, &req_size, encrypted, encrypted_ln);
     if ( status != 1 )
     {
-#ifdef ERROR_PRINT
-        printf("ERROR (0x%lx): EVP_PKEY_decrypt failed.\n", ERR_get_error());
-#endif
+        EPrint((int)ERR_get_error(), "EVP_PKEY_decrypt failed.\n");
         status = -5;
         goto clean;
     }

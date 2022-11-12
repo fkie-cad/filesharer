@@ -175,7 +175,7 @@ int __cdecl main(int argc, char* argv[])
         if ( s != 0 )
         {
             s = -4;
-            EPrint(s, "Init pub key failed.\n");
+            EPrint(s, "Init key failed.\n");
             goto clean;
         }
     }
@@ -226,8 +226,8 @@ clean:
 }
 
 
-//#define IS_SC_ARG(_a_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] != 0 && _a_[2] == 0 )
-#define IS_SC_ARG(_a_, _v_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] == _v_ && _a_[2] == 0 )
+//#define IS_1C_ARG(_a_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] != 0 && _a_[2] == 0 )
+#define IS_1C_ARG(_a_, _v_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] == _v_ && _a_[2] == 0 )
 #define IS_4C_ARG(_a_, _v_) ( ( _a_[0] == LIN_PARAM_IDENTIFIER || _a_[0] == WIN_PARAM_IDENTIFIER ) && _a_[1] == _v_[0] && _a_[2] == _v_[1] && _a_[3] == _v_[2] && _a_[4] == _v_[3] && _a_[5] == 0 )
 int parseParams(
     int argc, 
@@ -253,17 +253,17 @@ int parseParams(
         val1 = ( i < argc - 1 ) ? argv[i+1] : NULL;
         val2 = ( i < argc - 2 ) ? argv[i+2] : NULL;
 
-        //if ( !IS_SC_ARG(arg) )
+        //if ( !IS_1C_ARG(arg) )
         //{
         //    DPrint("Not an arg: %s\n", arg);
         //    break;
         //}
         
-        if ( IS_SC_ARG(arg, 'c') )
+        if ( IS_1C_ARG(arg, 'c') )
         {
             *flags |= FLAG_CHECK_FILE_HASH;
         }
-        else if ( IS_SC_ARG(arg, 'm') )
+        else if ( IS_1C_ARG(arg, 'm') )
         {
             if ( val1 == NULL )
                 break;
@@ -299,11 +299,11 @@ int parseParams(
             i++;
             i++;
         }
-        else if ( IS_SC_ARG(arg, 'f') )
+        else if ( IS_1C_ARG(arg, 'f') )
         {
             *flags |= FLAG_FLAT_COPY;
         }
-        else if ( IS_SC_ARG(arg, 'k') )
+        else if ( IS_1C_ARG(arg, 'k') )
         {
             if ( val1 == NULL )
                 break;
@@ -313,11 +313,11 @@ int parseParams(
 
             i++;
         }
-        else if ( IS_SC_ARG(arg, 'r') )
+        else if ( IS_1C_ARG(arg, 'r') )
         {
             *flags |= FLAG_RECURSIVE;
         }
-        else if ( IS_SC_ARG(arg, 's') )
+        else if ( IS_1C_ARG(arg, 's') )
         {
             if ( val1 == NULL )
                 break;
@@ -326,7 +326,7 @@ int parseParams(
 
             i++;
         }
-        else if ( IS_SC_ARG(arg, 'v') )
+        else if ( IS_1C_ARG(arg, 'v') )
         {
             if ( val1 == NULL )
                 break;
@@ -356,7 +356,8 @@ int parseParams(
         return -1;
     return 0;
 }
-#undef IS_SC_ARG
+#undef IS_1C_ARG
+#undef IS_4C_ARG
 
 int checkParams(
     uint16_t flags,
@@ -407,7 +408,7 @@ int checkParams(
 
 void printUsage()
 {
-    printf("Usage: %s %csend <ip> <port>|%crecv <port> [%cv <version>] [%ck <path>] [%cc] [%cr] [%cf] [%cs <size>] path [...]\n", 
+    printf("Usage: %s %csend <ip> <port>|%crecv <port> [%cv <version>] [%ck <path>] [%cc] [%cr] [%cf] [%cs <size>] <path> [...]\n",
         APP_NAME, 
         PARAM_IDENTIFIER, 
         PARAM_IDENTIFIER, 
@@ -423,7 +424,7 @@ void printUsage()
     printf("Last changed: %s\n", APP_LAST_CHANGED);
 }
 
-void printHelp()
+void printHelp(void)
 {
 #ifdef _WIN32
     const char* key_type = "der";
@@ -433,8 +434,8 @@ void printHelp()
 
     printUsage();
     printf("\nOptions\n");
-    printf(" - %crecv: receiving server on <port>.\n", PARAM_IDENTIFIER);
-    printf(" - %csend: sending client to <ip> on <port>).\n", PARAM_IDENTIFIER);
+    printf(" - %crecv: Start a receiving server on <port>.\n", PARAM_IDENTIFIER);
+    printf(" - %csend: Start a sending client to <ip> on <port>).\n", PARAM_IDENTIFIER);
     printf(" - %cv: IP version 4 (default) or 6.\n", PARAM_IDENTIFIER);
     printf(" - %ck: Path to an SSL key.%s file to encrypt or decrypt data. "
            "The server has to use the private key, the client the public key.\n", 
@@ -447,7 +448,7 @@ void printHelp()
     printf(" - %cc : Check file hashes of transmitted files. Set by default, if transferred encrypted.\n", PARAM_IDENTIFIER);
     printf(" - %cr : Copy dirs recursively.\n", PARAM_IDENTIFIER);
     printf(" - %cf : Flatten copied dirs to base dir. "
-           "Only meaningful if /r is set.\n",
+           "Only used if /r is set.\n",
            PARAM_IDENTIFIER);
     printf(" - %cs : Maximum size of encrypted chunk. "
            "Has to be greater than 0x1000 and less than 0xFFFFFFFF. "

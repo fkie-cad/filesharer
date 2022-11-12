@@ -10,20 +10,20 @@ If this happens, drop this tool in an "exclusion" folder.
 Compiles and runs under
 - Linux 
 - Windows (x86/x64)  
-- OsX may work too
 - Android in Termux
+- OsX may work too
 
 
 ## Version ##
-1.4.1  
-Last changed: 09.06.2022
+1.4.2  
+Last changed: 12.11.2022
 
 
 ## Requirements
 ### Linux ###
 - gcc
 - [cmake]
-- Openssl library
+- Openssl (dev) library
 
 ### Windows ###
 - msbuild 
@@ -38,8 +38,7 @@ $ winBuild.bat [/app] [/m <Release|Debug>] [/b <32|64>] [/rtl] [/pdb] [/bt <path
 ```
 
 The PlatformToolset defaults to "v142" but may be changed with the `/pts` option.
-"v142" is used for VS 2019, "v143" would be used in VS 2022, 
-or you could also use "WindowsApplicationForDrivers10.0" with WDK10 installed.
+"v142" is used for VS 2019, "v143" would be used in VS 2022.
 
 ### Runtime Errors (Windows)
 If a "VCRUNTIMExxx.dll not found Error" occurs on the target system, statically including the runtime libraries is a solution.  
@@ -60,12 +59,12 @@ Use `clang` instead of `gcc` in Termux on Android.
 
 ## Usage
 ```bash
-Usage: FShare -recv <port>|-send <ip> <port> [-v <version>] [-k <path>] [-c] [-r] [-f] [-s <size>] path [...]
+Usage: FShare -recv <port>|-send <ip> <port> [-v <version>] [-k <path>] [-c] [-r] [-f] [-s <size>] <path> [...]
 ```
 
 **Options**
-- -recv: receiving server on `<port>`.
-- -send: sending client to `<ip>` on `<port>`.
+- -recv: Start a receiving server on `<port>`.
+- -send: Start a sending client to `<ip>` on `<port>`.
 - -v: IP version 4 (default) or 6.
 - -k: Path to an SSL key file to encrypt or decrypt data.
       The server has to use the private key, the client the public key.
@@ -78,7 +77,7 @@ Usage: FShare -recv <port>|-send <ip> <port> [-v <version>] [-k <path>] [-c] [-r
        Set by default, if transferred encrypted.
 - -r : Copy dirs recursively.
 - -f : Flatten copied dirs to base dir. 
-       Only meaningful if /r is set.
+       Only used if /r is set.
 - -s : Maximum size of encrypted chunk. 
        Has to be greater than 0x1000 and less than 0xFFFFFFFF.
        Defaults to 0x100000.
@@ -86,12 +85,12 @@ Usage: FShare -recv <port>|-send <ip> <port> [-v <version>] [-k <path>] [-c] [-r
     
 
 ## Examples:
-Run plain server with ipv4 and save files in "files/"
+Run plain server with ipv4 listening on port 1234 and save files in "files/"
 ```bash
 $ FShare -recv 1234 files/
 ```
 
-Run encrypted server with ipv6 and save files in "files/"
+Run encrypted server with ipv6 listening on port 1234 and save files in "files/"
 ```bash
 $ FShare -recv 1234 -v 6 -k .ssl/priv.key files/
 ```
@@ -106,7 +105,8 @@ Run encrypted ipv6 client, sending the directory "files" recursively
 $ FShare -send 127.0.0.1 1234 -v 6 -c -k .ssl/pub.key -r files
 ```
 
-Obviously, if the server expects encrypted files, the client has to send encrypted files.
+Obviously, if the server expects encrypted files (i.e. the `-k <path>` option is set), 
+the client has to send encrypted files (i.e. set the `-k <path>` option).
 
 
 ### Performance
@@ -118,7 +118,7 @@ If memory is low, this value may be decreased, at least down to 0x1000.
 
 After each block, the client waits for an answer of the server, which slows down the process.
 To speed up the transfer, the value may be increased (theoretically) up to 0xFFFFFFFF. 
-The upper limit comes due to MS BCrypt limits, that expect a ULONG (32-bit int) as the length value in en/decryption functions.
+The upper limit comes due to the MS BCrypt limit, that expects a ULONG (32-bit int) as the length value in en/decryption functions.
 
 
 ### Encryption
@@ -140,7 +140,7 @@ RSA padding will be changed to AOEP in the future, when it's implemented correct
 AES block cipher mode may be changed too to GCM.
 
 Files are sent in chunks of 0x100000 (or whatever the `-s` option is set to) byte blocks. 
-For each block, the IV is rotated so it should be different for each block.
+For each block, the IV is rotated, so it should be different for each block.
 
 
 ### Integrity

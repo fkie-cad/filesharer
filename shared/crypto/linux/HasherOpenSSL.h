@@ -72,7 +72,8 @@ int sha256(
  */
 int sha1(
     FILE* fp, 
-    char* output
+	unsigned char* hash_bytes,
+	uint16_t hash_bytes_size
 );
 
 ///**
@@ -93,7 +94,8 @@ int sha1(
  */
 int md5File(
     const char* path, 
-    char* output
+	unsigned char* hash_bytes,
+	uint16_t hash_bytes_size
 );
 
 /**
@@ -105,7 +107,8 @@ int md5File(
  */
 int md5(
     FILE* fp, 
-    char* output
+	unsigned char* hash_bytes,
+	uint16_t hash_bytes_size
 );
 
 ///**

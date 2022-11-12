@@ -3,6 +3,8 @@
 #include <errno.h>
 
 #include <openssl/md5.h>
+#include <openssl/types.h>
+#include <openssl/evp.h>
 
 #include "HasherOpenSSL.h"
 
@@ -21,6 +23,47 @@ static void md5HashString(
 	char output[MD5_STRING_BUFFER_LN]
 );
 
+
+//void hashString(
+//	const char* string,
+//	char* output,
+//    size_t outputSize,
+//    uint16_t digestLength,
+//    const EVP_MD *mo
+//)
+//{
+//    int b;
+//	unsigned char hash[0x40];
+//    uint size = digestLength;
+//    EVP_MD_CTX *mdctx;
+//    mdctx = EVP_MD_CTX_new();
+//    if ( mdctx == NULL )
+//		return;
+//
+//    b = EVP_DigestInit_ex(mdctx, mo, NULL);
+//	if ( b != 1 )
+//    {
+//        goto clean;
+//    }
+//
+//    b = EVP_DigestUpdate(mdctx, string, strlen(string));
+//    if ( b != 1 )
+//    {
+//        goto clean;
+//    }
+//
+//    b = EVP_DigestFinal_ex(mdctx, hash, &size);
+//	if ( b != 1 )
+//    {
+//        goto clean;
+//    }
+//
+//	md5HashString(hash, output);
+//
+//clean:
+//    if ( mdctx )
+//	    EVP_MD_CTX_free(mdctx);
+//}
 
 //static const int CHUNK_SIZE = getpagesize() << 2;
 static const int CHUNK_SIZE = 0x1000;
@@ -50,24 +93,52 @@ int sha256(
 	uint16_t hash_bytes_size
 )
 {
-	SHA256_CTX sha256;
-	SHA256_Init(&sha256);
-
+    int b;
+    int s = 0;
+    EVP_MD_CTX *mdctx;
+    uint size = hash_bytes_size;
 	size_t bytes_read;
 	const size_t buf_size = CHUNK_SIZE;
-	char* buffer = (char*) malloc(buf_size);
+    char* buffer = NULL;
+
+    mdctx = EVP_MD_CTX_new();
+    if ( mdctx == NULL )
+		return -1;
+
+    b = EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
+	if ( b != 1 )
+    {
+        s = -1;
+        goto clean;
+    }
+
+	buffer = (char*) malloc(buf_size);
 	if ( !buffer ) return -1;
 
 	while ((bytes_read = fread(buffer, 1, buf_size, file)))
 	{
-		SHA256_Update(&sha256, buffer, bytes_read);
+        b = EVP_DigestUpdate(mdctx, buffer, bytes_read);
+        if ( b != 1 )
+        {
+            s = -1;
+            goto clean;
+        }
 	}
 
-	SHA256_Final(hash_bytes, &sha256);
+    b = EVP_DigestFinal_ex(mdctx, hash_bytes, &size);
+	if ( b != 1 )
+    {
+        s = -1;
+        goto clean;
+    }
 
-	free(buffer);
+clean:
+    if ( buffer )
+        free(buffer);
+    if ( mdctx )
+	    EVP_MD_CTX_free(mdctx);
 
-	return 0;
+	return s;
 }
 
 void sha256String(
@@ -75,13 +146,38 @@ void sha256String(
 	char output[SHA256_STRING_BUFFER_LN]
 )
 {
+    int b;
+    uint size = SHA256_DIGEST_LENGTH;
 	unsigned char hash[SHA256_DIGEST_LENGTH];
-	SHA256_CTX sha256;
-	SHA256_Init(&sha256);
-	SHA256_Update(&sha256, string, strlen(string));
-	SHA256_Final(hash, &sha256);
+    EVP_MD_CTX *mdctx;
+
+    mdctx = EVP_MD_CTX_new();
+    if ( mdctx == NULL )
+		return;
+
+    b = EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
+	if ( b != 1 )
+    {
+        goto clean;
+    }
+
+    b = EVP_DigestUpdate(mdctx, string, strlen(string));
+    if ( b != 1 )
+    {
+        goto clean;
+    }
+
+    b = EVP_DigestFinal_ex(mdctx, hash, &size);
+	if ( b != 1 )
+    {
+        goto clean;
+    }
 
 	sha256HashString(hash, output);
+
+clean:
+    if ( mdctx )
+	    EVP_MD_CTX_free(mdctx);
 }
 
 
@@ -108,7 +204,8 @@ void sha256HashString(
 
 int sha1File(
 	const char* path, 
-	char output[SHA1_STRING_BUFFER_LN]
+	unsigned char* hash_bytes,
+	uint16_t hash_bytes_size
 )
 {
 	errno = 0;
@@ -116,7 +213,7 @@ int sha1File(
 	if ( !file )
 		return 1;
 
-	int s = sha1(file, output);
+	int s = sha1(file, hash_bytes, hash_bytes_size);
 
 	fclose(file);
 
@@ -125,28 +222,56 @@ int sha1File(
 
 int sha1(
 	FILE* file, 
-	char* output
+	unsigned char* hash_bytes,
+	uint16_t hash_bytes_size
 )
 {
-	unsigned char hash[SHA_DIGEST_LENGTH];
-	SHA_CTX sha1;
-	SHA1_Init(&sha1);
-
+    int b;
+    int s = 0;
+    EVP_MD_CTX *mdctx;
+    uint size = hash_bytes_size;
 	size_t bytes_read;
-	char* buffer = (char*) malloc(CHUNK_SIZE);
+	const size_t buf_size = CHUNK_SIZE;
+    char* buffer = NULL;
+
+    mdctx = EVP_MD_CTX_new();
+    if ( mdctx == NULL )
+		return -1;
+
+    b = EVP_DigestInit_ex(mdctx, EVP_sha1(), NULL);
+	if ( b != 1 )
+    {
+        s = -1;
+        goto clean;
+    }
+
+	buffer = (char*) malloc(buf_size);
 	if ( !buffer ) return -1;
 
-	while ((bytes_read = fread(buffer, 1, CHUNK_SIZE, file)))
+	while ((bytes_read = fread(buffer, 1, buf_size, file)))
 	{
-		SHA1_Update(&sha1, buffer, bytes_read);
+        b = EVP_DigestUpdate(mdctx, buffer, bytes_read);
+        if ( b != 1 )
+        {
+            s = -1;
+            goto clean;
+        }
 	}
 
-	SHA1_Final(hash, &sha1);
-	sha1HashString(hash, output);
+    b = EVP_DigestFinal_ex(mdctx, hash_bytes, &size);
+	if ( b != 1 )
+    {
+        s = -1;
+        goto clean;
+    }
 
-	free(buffer);
+clean:
+    if ( buffer )
+        free(buffer);
+    if ( mdctx )
+	    EVP_MD_CTX_free(mdctx);
 
-	return 0;
+	return s;
 }
 
 void sha1String(
@@ -154,13 +279,37 @@ void sha1String(
 	char output[SHA1_STRING_BUFFER_LN]
 )
 {
+    int b;
 	unsigned char hash[SHA_DIGEST_LENGTH];
-	SHA_CTX sha1;
-	SHA1_Init(&sha1);
-	SHA1_Update(&sha1, string, strlen(string));
-	SHA1_Final(hash, &sha1);
+    uint size = SHA256_DIGEST_LENGTH;
+    EVP_MD_CTX *mdctx;
+    mdctx = EVP_MD_CTX_new();
+    if ( mdctx == NULL )
+		return;
+
+    b = EVP_DigestInit_ex(mdctx, EVP_sha1(), NULL);
+	if ( b != 1 )
+    {
+        goto clean;
+    }
+
+    b = EVP_DigestUpdate(mdctx, string, strlen(string));
+    if ( b != 1 )
+    {
+        goto clean;
+    }
+
+    b = EVP_DigestFinal_ex(mdctx, hash, &size);
+	if ( b != 1 )
+    {
+        goto clean;
+    }
 
 	sha1HashString(hash, output);
+
+clean:
+    if ( mdctx )
+	    EVP_MD_CTX_free(mdctx);
 }
 
 
@@ -187,8 +336,9 @@ void sha1HashString(
 
 
 int md5File(
-	const char* path, 
-	char* output
+	const char* path,
+	unsigned char* hash_bytes,
+	uint16_t hash_bytes_size
 )
 {
 	errno = 0;
@@ -196,7 +346,7 @@ int md5File(
 	if ( !file )
 		return 1;
 
-	int s = md5(file, output);
+	int s = md5(file, hash_bytes, hash_bytes_size);
 
 	fclose(file);
 
@@ -205,29 +355,56 @@ int md5File(
 
 int md5(
 	FILE* file, 
-	char* output
+	unsigned char* hash_bytes,
+	uint16_t hash_bytes_size
 )
 {
-	unsigned char hash[MD5_DIGEST_LENGTH];
-	MD5_CTX md5;
-	MD5_Init(&md5);
-
+    int b;
+    int s = 0;
+    EVP_MD_CTX *mdctx;
+    uint size = hash_bytes_size;
 	size_t bytes_read;
-	const int buf_size = CHUNK_SIZE;
-	char* buffer = (char*) malloc(buf_size);
+	const size_t buf_size = CHUNK_SIZE;
+    char* buffer = NULL;
+
+    mdctx = EVP_MD_CTX_new();
+    if ( mdctx == NULL )
+		return -1;
+
+    b = EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
+	if ( b != 1 )
+    {
+        s = -1;
+        goto clean;
+    }
+
+	buffer = (char*) malloc(buf_size);
 	if ( !buffer ) return -1;
 
 	while ((bytes_read = fread(buffer, 1, buf_size, file)))
 	{
-		MD5_Update(&md5, buffer, bytes_read);
+        b = EVP_DigestUpdate(mdctx, buffer, bytes_read);
+        if ( b != 1 )
+        {
+            s = -1;
+            goto clean;
+        }
 	}
 
-	MD5_Final(hash, &md5);
-	md5HashString(hash, output);
+    b = EVP_DigestFinal_ex(mdctx, hash_bytes, &size);
+	if ( b != 1 )
+    {
+        s = -1;
+        goto clean;
+    }
 
-	free(buffer);
+clean:
+    if ( buffer )
+        free(buffer);
+    if ( mdctx )
+	    EVP_MD_CTX_free(mdctx);
 
-	return 0;
+	return s;
 }
 
 
@@ -236,13 +413,37 @@ void md5String(
 	char output[MD5_STRING_BUFFER_LN]
 )
 {
+    int b;
+    uint size = MD5_DIGEST_LENGTH;
 	unsigned char hash[MD5_DIGEST_LENGTH];
-	MD5_CTX md5;
-	MD5_Init(&md5);
-	MD5_Update(&md5, string, strlen(string));
-	MD5_Final(hash, &md5);
+    EVP_MD_CTX *mdctx;
+    mdctx = EVP_MD_CTX_new();
+    if ( mdctx == NULL )
+		return;
+
+    b = EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
+	if ( b != 1 )
+    {
+        goto clean;
+    }
+
+    b = EVP_DigestUpdate(mdctx, string, strlen(string));
+    if ( b != 1 )
+    {
+        goto clean;
+    }
+
+    b = EVP_DigestFinal_ex(mdctx, hash, &size);
+	if ( b != 1 )
+    {
+        goto clean;
+    }
 
 	md5HashString(hash, output);
+
+clean:
+    if ( mdctx )
+	    EVP_MD_CTX_free(mdctx);
 }
 
 /**
