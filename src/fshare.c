@@ -43,14 +43,14 @@
 #define APP_NAME "FShare"
 
 
-#define DATA_STATE_NONE (0x0)
-#define DATA_STATE_KEY_HEADER (0x1)
-#define DATA_STATE_FILE_HEADER (0x2)
-#define DATA_STATE_FILE_DATA (0x3)
+//#define DATA_STATE_NONE (0x0)
+//#define DATA_STATE_KEY_HEADER (0x1)
+//#define DATA_STATE_FILE_HEADER (0x2)
+//#define DATA_STATE_FILE_DATA (0x3)
 
-#define KEY_HEADER_BUFFER_SIZE (0x100)
-#define BASE_NAME_MAX_SIZE (0x200)
-#define SUB_DIR_MAX_SIZE (0x200)
+//#define KEY_HEADER_BUFFER_SIZE (0x100)
+//#define BASE_NAME_MAX_SIZE (0x200)
+//#define SUB_DIR_MAX_SIZE (0x200)
 
 
 int parseParams(
@@ -87,7 +87,7 @@ int runClient(
     uint16_t flags
 );
 
-int __cdecl runServer(
+int runServer(
     int argc, 
     char** argv,
     int start_i,

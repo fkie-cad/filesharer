@@ -137,11 +137,11 @@ int runClient(
         printf("Block size too small! Setting to 0x%x!\n", enc_block_buffer_size);
     }
 
-    if ( enc_block_buffer_size > UINT32_MAX )
-    {
-        enc_block_buffer_size = STD_BLOCK_SIZE;
-        printf("Block size too big! Setting to 0x%x!\n", enc_block_buffer_size);
-    }
+    //if ( enc_block_buffer_size > UINT32_MAX )
+    //{
+    //    enc_block_buffer_size = STD_BLOCK_SIZE;
+    //    printf("Block size too big! Setting to 0x%x!\n", enc_block_buffer_size);
+    //}
 
 
 
@@ -184,7 +184,7 @@ int runClient(
         else if ( dirExists(path) )
             sendDir(path, sock, flags);
         else
-            EPrint(-1, "ERROR: Path \"%s\" does not exist!\n", path);
+            EPrint(-1, "Path \"%s\" does not exist!\n", path);
 //        if ( !s )
 //            break;
     }
@@ -246,6 +246,19 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
             goto exit;
         }
         printf("\r");
+    }
+    
+    
+
+    // 
+    // file and block size calculations
+
+    s = getFileSize(file_path, &file_header.file_size);
+    if ( s != 0 || file_header.file_size == 0 )
+    {
+        printf("INFO: File size is 0!\n");
+        if ( s == 0 ) s = -1;
+        goto exit;
     }
 
 
@@ -310,18 +323,6 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
         }
         DPrint("Answer OK.\n");
         DPrint("Sending file header.\n");
-    }
-    
-
-    // 
-    // file and block size calculations
-
-    s = getFileSize(file_path, &file_header.file_size);
-    if ( s != 0 || file_header.file_size == 0 )
-    {
-        printf("INFO: File size is 0!\n");
-        if ( s == 0 ) s = -1;
-        goto exit;
     }
     
     if ( is_encrypted )

@@ -125,7 +125,7 @@ static int running = 0;
 
 
 
-int __cdecl runServer(
+int runServer(
     int argc, 
     char** argv,
     int start_i,
