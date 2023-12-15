@@ -238,9 +238,7 @@ int loadFsAnswer(uint8_t* buffer, uint32_t buffer_size, PFsAnswer a)
 {
     if ( buffer_size < fs_answer_offsets.state+sizeof(a->state) )
     {
-#ifdef DEBUG_PRINT
-        printf("loadFsAnswer::buffer size too small: 0x%x < 0x%x\n", buffer_size, (uint32_t)(fs_answer_offsets.state+sizeof(a->state)));
-#endif
+        DPrint("loadFsAnswer::buffer size too small: 0x%x < 0x%x\n", buffer_size, (uint32_t)(fs_answer_offsets.state+sizeof(a->state)));
         return -1;
     }
     //memcpy(&(a->garbage), &buffer[fs_answer_offsets.garbage], AES_IV_SIZE);
@@ -255,6 +253,6 @@ int loadFsAnswer(uint8_t* buffer, uint32_t buffer_size, PFsAnswer a)
 void printFsAnswer(PFsAnswer a, char* prefix)
 {
     printf("%sstate: %u\n", prefix, a->state);
-    printf("%scode: %u\n", prefix, a->code);
+    printf("%scode: 0x%x\n", prefix, a->code);
     printf("%sinfo: 0x%zx\n", prefix, a->info);
 }

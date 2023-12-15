@@ -29,7 +29,7 @@ int initConnection(
     hints.ai_family = family;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_flags = AI_NUMERICHOST | flags;
+    hints.ai_flags = flags;
 
     // Resolve the server address and port
     DPrint("getaddrinfo\n");

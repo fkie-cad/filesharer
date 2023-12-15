@@ -23,7 +23,7 @@ Last changed: 12.11.2022
 ### Linux ###
 - gcc
 - [cmake]
-- Openssl (dev) library
+- Openssl (dev) library (openssl-dev, libssl-dev or sth. like that)
 
 ### Windows ###
 - msbuild 
@@ -53,9 +53,16 @@ $ ./linuxBuild.sh [-t app] [-m Debug|Release] [-h]
 ### Linux gcc plain
 ```bash
 $ mkdir build
-$ gcc -o build/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast -L/usr/lib -lcrypto src/fshare.c src/client.c src/server.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared  
+$ gcc -o build/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast src/fshare.c src/client.c src/server.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared -L/usr/lib -lssl -lcrypto 
 ```
+
+`-L/usr/lib -lssl -lcrypto` may be placed behind -Ofast, if linking errors occur.
+Placing it at the end seems to be the most reliable option.
+
+The openssl libs may not be located in `/usr/lib` but in `/usr/lib/x86_64-linux-gnu`, so `-L/usr/lib` has to be changed in that case.
+
 Use `clang` instead of `gcc` in Termux on Android.
+
 
 ## Usage
 ```bash

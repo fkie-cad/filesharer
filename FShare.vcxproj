@@ -74,6 +74,7 @@
   
   <ItemDefinitionGroup>
     <Link>
+      <AdditionalOptions>/GUARD:cf %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>%(AdditionalDependencies);ntdll.lib;ws2_32.lib;Crypt32.lib;Bcrypt.lib;</AdditionalDependencies>
     </Link>
     <ClCompile>
@@ -89,6 +90,7 @@
       <!--<IntrinsicFunctions>true</IntrinsicFunctions>-->
       <PreprocessorDefinitions>ERROR_PRINT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!--<LanguageStandard>c99</LanguageStandard>-->
+      <AdditionalOptions>/GS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ResourceCompile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);shared\;</AdditionalIncludeDirectories>
@@ -151,23 +153,29 @@
     <ClCompile Include="src\server.c" />
     <ClCompile Include="src\FsHeader.c" />
     <ClCompile Include="shared\collections\Fifo.c" />
-    <ClCompile Include="shared\crypto\windows\AESCNG.c;shared\crypto\windows\crypto.c;shared\crypto\windows\HasherCNG.c;shared\crypto\windows\RSACNG.c" />
-    <ClCompile Include="shared\files\Files.c;shared\files\FilesW.c" />
-    <ClCompile Include="shared\net\winSock.c;shared\net\sock.c" />
+    <ClCompile Include="shared\crypto\windows\AESCNG.c" />
+    <ClCompile Include="shared\crypto\windows\crypto.c" />
+    <ClCompile Include="shared\crypto\windows\HasherCNG.c" />
+    <ClCompile Include="shared\crypto\windows\RSACNG.c" />
+    <ClCompile Include="shared\files\Files.c" />
+    <ClCompile Include="shared\files\FilesW.c" />
+    <ClCompile Include="shared\net\winSock.c" />
+    <ClCompile Include="shared\net\sock.c" />
   </ItemGroup>
+  
   <ItemGroup Condition="'$(DebugPrint)'!='0'">
     <ClCompile Include="shared\debug.c" />
   </ItemGroup>
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-	
+    
   <Target Name="DisplayMessages" AfterTargets="Build">
     <Message Text="PlatformToolset = $(PlatformToolset)" />
     <Message Text="Project Name = $(MSBuildProjectName)" />
     <Message Text="Project File Name = $(MSBuildProjectFile)" />
-	<Message Text="ConfigurationType = $(ConfigurationType)" />
-	<Message Text="Configuration = $(Configuration)" />
-	<Message Text="Platform = $(Platform)" />
+    <Message Text="ConfigurationType = $(ConfigurationType)" />
+    <Message Text="Configuration = $(Configuration)" />
+    <Message Text="Platform = $(Platform)" />
     <Message Text="IntDir = $(IntDir)" />
     <Message Text="OutDir = $(OutDir)" />
     <Message Text="TargetPath = $(TargetPath)" />

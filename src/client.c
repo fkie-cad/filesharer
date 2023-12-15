@@ -299,10 +299,8 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
             EPrint(s, "Encrypting key header failed!\n");
             goto exit;
         }
-#ifdef DEBUG_PRINT
-        DPrint("encrypted key header");
-        printMemory(gBuffer, (uint32_t)buffer_size, 0x10, 0);
-#endif
+        DPrint("encrypted key header\n");
+        PrintMemCols8(gBuffer, (uint32_t)buffer_size,  0);
 
         bytes_sent = send(sock, (char*)gBuffer, (int)buffer_size, 0);
         if ( bytes_sent < 0 )
@@ -373,10 +371,8 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     // encrypt file header
     if ( is_encrypted )
     {
-#ifdef DEBUG_PRINT
-        DPrint("file header");
-        printMemory(gBuffer, header_size, 0x10, 0);
-#endif
+        DPrint("file header\n");
+        PrintMemCols8(gBuffer, header_size, 0);
 
         buffer_size = BUFFER_SIZE;
         buffer_ptr = (uint8_t*)gBuffer;
@@ -394,10 +390,8 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
             EPrint(s, "Encrypting file header failed!\n");
             goto exit;
         }
-#ifdef DEBUG_PRINT
-        DPrint("encrypted file header (0x%zx)", buffer_size);
-        printMemory(gBuffer, (uint32_t)buffer_size, 0x10, 0);
-#endif
+        DPrint("encrypted file header (0x%zx)\n", buffer_size);
+        PrintMemCols8(gBuffer, (uint32_t)buffer_size, 0);
     }
     else
     {
@@ -596,7 +590,7 @@ int sendBytes(SOCKET sock, uint8_t* buffer, size_t* data_bytes_sent, uint32_t by
     }
 
     *data_bytes_sent += bytes_sent;
-    pc = (uint32_t)((float)(*data_bytes_sent) / (float)data_full_size * 100.0);
+    pc = (uint32_t)((*data_bytes_sent) * 100 / data_full_size);
 #ifdef DEBUG_PRINT
     DPrint("Bytes sent: 0x%zx/0x%zx (%u%%).\n", *data_bytes_sent, (size_t)data_full_size, pc);
 #else
@@ -739,11 +733,10 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader*
 
     if ( is_encrypted )
     {
-#ifdef DEBUG_PRINT
 //        printFsKeyHeader(key_header, " - ");
-        DPrint("encrypted buffer");
-        printMemory(gBuffer, (uint32_t)bytes_rec, 0x10, 0);
-#endif
+        DPrint("encrypted buffer\n");
+        PrintMemCols8(gBuffer, (uint32_t)bytes_rec, 0);
+
         buffer_size = BUFFER_SIZE;
         s = decryptData(gBuffer, bytes_rec, &buffer_ptr, &buffer_size, key_header->iv, AES_IV_SIZE);
         if ( s != 0 )
@@ -752,10 +745,8 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader*
             EPrint(s, "Decrypting answer failed!\n");
             return -2;
         }
-#ifdef DEBUG_PRINT
-        DPrint("decrypted buffer");
-        printMemory(buffer_ptr, buffer_size, 0x10, 0);
-#endif
+        DPrint("decrypted buffer\n");
+        PrintMemCols8(buffer_ptr, buffer_size, 0);
     }
     else
     {

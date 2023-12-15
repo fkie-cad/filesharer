@@ -366,10 +366,8 @@ int handleData(
         buffer_ptr = (uint8_t*)key_header;
 //        result = sizeof(*key_header);
         result = bytes_received; // openssl rsa wants plain buffer of encrypted size
-#ifdef DEBUG_PRINT
-        DPrint("encrypted key header");
-        printMemory(gBuffer, bytes_received, 0x10, 0);
-#endif
+        DPrint("encrypted key header\n");
+        PrintMemCols8(gBuffer, bytes_received, 0);
 
         s = decryptKey(
             gBuffer, 
@@ -385,10 +383,8 @@ int handleData(
             //sendAnswer(1, FS_ERROR_DECRYPT_AES_KEY, bytes_received, ClientSocket, is_encrypted, key_header);
             goto clean;
         }
-#ifdef DEBUG_PRINT
-        DPrint("decrypted key header");
-        printMemory(buffer_ptr, result, 0x10, 0);
-#endif
+        DPrint("decrypted key header\n");
+        PrintMemCols8(buffer_ptr, result, 0);
 
         if ( key_header->type != FS_TYPE_KEY_HEADER )
         {
@@ -434,10 +430,8 @@ int handleData(
                 
         if ( is_encrypted )
         {
-#ifdef DEBUG_PRINT
-            DPrint("encrypted file header");
-            printMemory(gBuffer, result, 0x10, 0);
-#endif
+            DPrint("encrypted file header\n");
+            PrintMemCols8(gBuffer, result, 0);
 
             buffer_size = BUFFER_SIZE;
             buffer_ptr = (uint8_t*)gBuffer;
@@ -449,10 +443,8 @@ int handleData(
                 sendAnswer(4, FS_ERROR_DECRYPT_FILE_HEADER, 0, ClientSocket, is_encrypted, key_header);
                 goto clean;
             }
-#ifdef DEBUG_PRINT
-            DPrint("decrypted file header");
-            printMemory(gBuffer, buffer_size, 0x10, 0);
-#endif
+            DPrint("decrypted file header\n");
+            PrintMemCols8(gBuffer, buffer_size, 0);
         }
         else
         {
@@ -662,10 +654,9 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
     
     if ( is_encrypted )
     {
-#ifdef DEBUG_PRINT
-        DPrint(" - buffer:");
-        printMemory(gBuffer, answer_size, 0x10, 0);
-#endif
+        DPrint(" - buffer:\n");
+        PrintMemCols8(gBuffer, answer_size, 0);
+
         s = encryptData(
             gBuffer, 
             answer_size, 
@@ -680,10 +671,8 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
             EPrint(s, "Encrypting file header failed!\n");
             return -2;
         }
-#ifdef DEBUG_PRINT
-        DPrint(" - encrypted:");
-        printMemory(buffer_ptr, buffer_size, 0x10, 0);
-#endif
+        DPrint(" - encrypted:\n");
+        PrintMemCols8(buffer_ptr, buffer_size, 0);
     }
     else
     {
@@ -760,7 +749,7 @@ int createFilePath(
 
 void printProgress(size_t br, size_t fs)
 {
-    uint16_t pc = (uint16_t)((float)br / (float)fs * 100.0);
+    uint16_t pc = (uint16_t)(br * 100 / fs);
     printf("Bytes received: 0x%zx/0x%zx (%u%%).", br, fs, pc);
 #ifdef DEBUG_PRINT
     printf("\n");
@@ -793,12 +782,8 @@ int writeBlockToFile(
     {
         memcpy(tmp_iv, key_header->iv, AES_IV_SIZE);
         rotate64Iv(tmp_iv, enc_part_i);
-#ifdef DEBUG_PRINT
         DPrint("iv: ");
-        for ( int x=0;x<0x10;x++ )
-            printf("%02x ", tmp_iv[x]);
-        printf("\n");
-#endif
+        PrintMemBytes(tmp_iv, 0x10);
 
         buffer_ptr = (uint8_t*)(file_buffer);
         s = decryptData(file_buffer, *buffer_size, &buffer_ptr, buffer_size, tmp_iv, AES_IV_SIZE);

@@ -66,6 +66,9 @@ int parseParams(
 );
 
 int checkParams(
+    int argc,
+    char** argv,
+    int start_i,
     uint16_t flags, 
     char* ip, 
     char* port, 
@@ -140,7 +143,7 @@ int __cdecl main(int argc, char* argv[])
         return -1;
     }
     
-    s = checkParams(flags, ip, port, family, key_path);
+    s = checkParams(argc, argv, start_i, flags, ip, port, family, key_path);
     if ( s != 0 )
     {
         printUsage();
@@ -360,6 +363,9 @@ int parseParams(
 #undef IS_4C_ARG
 
 int checkParams(
+    int argc,
+    char** argv,
+    int start_i,
     uint16_t flags,
     char* ip,
     char* port,
@@ -383,10 +389,26 @@ int checkParams(
         s = -1;
         EPrint(s, "A key is required for encryption!\n");
     }
-    if ( flags & FLAG_CLIENT && ip == NULL )
+    if ( flags & FLAG_CLIENT )
     {
-        s = -1;
-        EPrint(s, "No ip set!\n");
+        if ( ip == NULL )
+        {
+            s = -1;
+            EPrint(s, "No ip set!\n");
+        }
+        if ( !fileExists(argv[start_i]) )
+        {
+            s = -1;
+            EPrint(s, "No path set!\n");
+        }
+    }
+    if ( flags & FLAG_SERVER )
+    {
+        if ( !fileExists(argv[start_i]) )
+        {
+            s = -1;
+            EPrint(s, "No receive dir set!\n");
+        }
     }
     if ( port == NULL )
     {
