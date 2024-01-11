@@ -20,9 +20,6 @@
 
 
 #include "../shared/print.h"
-#ifdef DEBUG_PRINT
-#include "debug.h"
-#endif
 #if defined(_WIN32)
 #include "files/FilesW.h"
 #include "crypto/windows/HasherCNG.h"
@@ -367,7 +364,7 @@ int handleData(
 //        result = sizeof(*key_header);
         result = bytes_received; // openssl rsa wants plain buffer of encrypted size
         DPrint("encrypted key header\n");
-        PrintMemCols8(gBuffer, bytes_received, 0);
+        DPrintMemCol8(gBuffer, bytes_received, 0);
 
         s = decryptKey(
             gBuffer, 
@@ -384,7 +381,7 @@ int handleData(
             goto clean;
         }
         DPrint("decrypted key header\n");
-        PrintMemCols8(buffer_ptr, result, 0);
+        DPrintMemCol8(buffer_ptr, result, 0);
 
         if ( key_header->type != FS_TYPE_KEY_HEADER )
         {
@@ -431,7 +428,7 @@ int handleData(
         if ( is_encrypted )
         {
             DPrint("encrypted file header\n");
-            PrintMemCols8(gBuffer, result, 0);
+            DPrintMemCol8(gBuffer, result, 0);
 
             buffer_size = BUFFER_SIZE;
             buffer_ptr = (uint8_t*)gBuffer;
@@ -444,7 +441,7 @@ int handleData(
                 goto clean;
             }
             DPrint("decrypted file header\n");
-            PrintMemCols8(gBuffer, buffer_size, 0);
+            DPrintMemCol8(gBuffer, buffer_size, 0);
         }
         else
         {
@@ -655,7 +652,7 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
     if ( is_encrypted )
     {
         DPrint(" - buffer:\n");
-        PrintMemCols8(gBuffer, answer_size, 0);
+        DPrintMemCol8(gBuffer, answer_size, 0);
 
         s = encryptData(
             gBuffer, 
@@ -672,7 +669,7 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
             return -2;
         }
         DPrint(" - encrypted:\n");
-        PrintMemCols8(buffer_ptr, buffer_size, 0);
+        DPrintMemCol8(buffer_ptr, buffer_size, 0);
     }
     else
     {

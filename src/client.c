@@ -20,9 +20,6 @@
 
 #include "types.h"
 #include "../shared/print.h"
-#ifdef DEBUG_PRINT
-#include "debug.h"
-#endif
 #if defined(_WIN32)
 #include "files/filesW.h"
 #include "crypto/windows/HasherCNG.h"
@@ -300,7 +297,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
             goto exit;
         }
         DPrint("encrypted key header\n");
-        PrintMemCols8(gBuffer, (uint32_t)buffer_size,  0);
+        DPrintMemCol8(gBuffer, buffer_size,  0);
 
         bytes_sent = send(sock, (char*)gBuffer, (int)buffer_size, 0);
         if ( bytes_sent < 0 )
@@ -372,7 +369,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     if ( is_encrypted )
     {
         DPrint("file header\n");
-        PrintMemCols8(gBuffer, header_size, 0);
+        DPrintMemCol8(gBuffer, header_size, 0);
 
         buffer_size = BUFFER_SIZE;
         buffer_ptr = (uint8_t*)gBuffer;
@@ -391,7 +388,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
             goto exit;
         }
         DPrint("encrypted file header (0x%zx)\n", buffer_size);
-        PrintMemCols8(gBuffer, (uint32_t)buffer_size, 0);
+        DPrintMemCol8(gBuffer, (uint32_t)buffer_size, 0);
     }
     else
     {
@@ -735,7 +732,7 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader*
     {
 //        printFsKeyHeader(key_header, " - ");
         DPrint("encrypted buffer\n");
-        PrintMemCols8(gBuffer, (uint32_t)bytes_rec, 0);
+        DPrintMemCol8(gBuffer, (uint32_t)bytes_rec, 0);
 
         buffer_size = BUFFER_SIZE;
         s = decryptData(gBuffer, bytes_rec, &buffer_ptr, &buffer_size, key_header->iv, AES_IV_SIZE);
@@ -746,7 +743,7 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader*
             return -2;
         }
         DPrint("decrypted buffer\n");
-        PrintMemCols8(buffer_ptr, buffer_size, 0);
+        DPrintMemCol8(buffer_ptr, buffer_size, 0);
     }
     else
     {

@@ -25,9 +25,6 @@
 #include "args.h"
 
 #include "../shared/print.h"
-#ifdef DEBUG_PRINT
-#include "debug.h"
-#endif
 #if defined(_WIN32)
 #include "files/FilesW.h"
 #include "crypto/windows/HasherCNG.h"
@@ -348,7 +345,7 @@ int parseParams(
         }
         else
         {
-            DPrint("Unknown arg: %s\n", arg);
+            //DPrint("Unknown arg: %s\n", arg);
             break;
         }
     }
@@ -404,7 +401,7 @@ int checkParams(
     }
     if ( flags & FLAG_SERVER )
     {
-        if ( !fileExists(argv[start_i]) )
+        if ( !dirExists(argv[start_i]) )
         {
             s = -1;
             EPrint(s, "No receive dir set!\n");

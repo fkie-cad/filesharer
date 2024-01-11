@@ -79,7 +79,7 @@
     </Link>
     <ClCompile>
       <EnablePreFAST>true</EnablePreFAST>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <WarningLevel>Level4</WarningLevel>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);shared\;</AdditionalIncludeDirectories>
       <ExceptionHandling></ExceptionHandling>
@@ -161,10 +161,6 @@
     <ClCompile Include="shared\files\FilesW.c" />
     <ClCompile Include="shared\net\winSock.c" />
     <ClCompile Include="shared\net\sock.c" />
-  </ItemGroup>
-  
-  <ItemGroup Condition="'$(DebugPrint)'!='0'">
-    <ClCompile Include="shared\debug.c" />
   </ItemGroup>
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

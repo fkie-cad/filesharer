@@ -9,10 +9,6 @@
 
 #include "../../winDefs.h"
 #include "../../print.h"
-#if defined(DEBUG_PRINT)
-#include "../../debug.h"
-#endif
-
 
 
 NTSTATUS loadFileBytes(
@@ -143,7 +139,7 @@ int RSA_importPubKeyFromFile(
         printf("\n");
     }
     printf("file bytes (0x%x):", (key_buffer_ln));
-    printMemory(key_buffer, key_buffer_ln, 0x10, 0);
+    DPrintMemCol8(key_buffer, key_buffer_ln, 0);
 #endif
 
 //    if ( type == KEY_TYPE_PUB || type == KEY_TYPE_PEM )
@@ -230,7 +226,7 @@ int RSA_importPubKeyFromFile(
 #ifdef DEBUG_PRINT
         printf("publicKeyInfo : %p\n", publicKeyInfo);
         printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
-        printMemory(publicKeyInfo, publicKeyInfoLen, 0x10, 1);
+        DPrintMemCol8(publicKeyInfo, publicKeyInfoLen, 0);
         printf(" Algorithm\n");
         printf("  pszObjId: %s (%p)\n", publicKeyInfo->Algorithm.pszObjId, publicKeyInfo->Algorithm.pszObjId);
         printf("  Parameters (0x%x) (%p)\n    ", publicKeyInfo->Algorithm.Parameters.cbData, publicKeyInfo->Algorithm.Parameters.pbData);
@@ -286,7 +282,7 @@ int RSA_importPubKeyFromFile(
 //    }
 //#ifdef DEBUG_PRINT
 //    printf("wincrypt blob bytes (0x%x):", key_bytes_ln);
-//    printMemory(key_bytes, key_bytes_ln, 0x10, 0);
+//    DPrintMemCol8(key_bytes, key_bytes_ln, 0);
 //#endif
 //
 //    if ( wc_blob == NULL )
@@ -376,12 +372,12 @@ int RSA_importPubKeyFromFile(
     //Modulus[cbModulus] // Big-endian.
     
     printf("blob raw bytes (0x%x):", blob_ln);
-    printMemory(pbC, blob_ln, 0x10, 0);
+    DPrintMemCol8(pbC, blob_ln, 0);
     
     printf("blob exp: 0x%x\n", (ULONG)*(ULONG*)&blob[1]);
 
     printf("bc blob bytes (0x%x):", blob->cbModulus);
-    printMemory(ptr, blob->cbModulus, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbModulus, 0);
 #endif
 
     status = BCryptImportKeyPair(
@@ -486,13 +482,13 @@ int RSA_exportPubKeyToDER(
     printf(" cbPrime2: 0x%x\n", blob->cbPrime2);
     
     printf("bc blob raw bytes (0x%x):", blob_ln);
-    printMemory(buffer, blob_ln, 0x10, 0);
+    DPrintMemCol8(buffer, blob_ln, 0);
     ptr = ((PBYTE)(blob + 1));
     printf("bc blob exponent (0x%x):", blob->cbPublicExp);
-    printMemory(ptr, blob->cbPublicExp, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbPublicExp, 0);
     ptr += blob->cbPublicExp;
     printf("blob data (0x%x):", blob->cbModulus);
-    printMemory(ptr, blob->cbModulus, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbModulus, 0);
 #endif
 
     //typedef struct _PUBLICKEYSTRUC {
@@ -533,7 +529,7 @@ int RSA_exportPubKeyToDER(
     
 #ifdef DEBUG_PRINT
     printf("wc blob raw bytes (0x%x):", wc_blob_ln);
-    printMemory(wc_buffer, wc_blob_ln, 0x10, 0);
+    DPrintMemCol8(wc_buffer, wc_blob_ln, 0);
 
     printf("convert to pubkey info\n");
 #endif
@@ -555,7 +551,7 @@ int RSA_exportPubKeyToDER(
     }
 #ifdef DEBUG_PRINT
     printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
-    printMemory((PBYTE)publicKeyInfo, publicKeyInfoLen, 0x10, 0);
+    DPrintMemCol8((PBYTE)publicKeyInfo, publicKeyInfoLen, 0);
 #endif
     publicKeyInfo_t = (CERT_PUBLIC_KEY_INFO*)malloc(publicKeyInfoLen+0x50);
     if ( !publicKeyInfo_t )
@@ -581,7 +577,7 @@ int RSA_exportPubKeyToDER(
 #ifdef DEBUG_PRINT
     printf("publicKeyInfo_t : %p\n", publicKeyInfo_t);
     printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
-    printMemory(publicKeyInfo_t, publicKeyInfoLen, 0x10, 1);
+    DPrintMemCol8(publicKeyInfo_t, publicKeyInfoLen, 0);
     printf(" Algorithm\n");
     printf("  pszObjId: %status (%p)\n", publicKeyInfo_t->Algorithm.pszObjId, publicKeyInfo_t->Algorithm.pszObjId);
     printf("  Parameters (0x%x) (%p)\n    ", publicKeyInfo_t->Algorithm.Parameters.cbData, publicKeyInfo_t->Algorithm.Parameters.pbData);
@@ -614,7 +610,7 @@ int RSA_exportPubKeyToDER(
     
 #ifdef DEBUG_PRINT
     printf("DER bytes (0x%x):", der_buffer_ln);
-    printMemory(der_buffer, der_buffer_ln, 0x10, 0);
+    DPrintMemCol8(der_buffer, der_buffer_ln, 0);
 #endif
 
     status = writeFileBytes(path, der_buffer, der_buffer_ln);
@@ -700,13 +696,13 @@ int RSA_exportPubKeyToBLOB(
     
     PBYTE ptr = NULL;
     printf("bc blob raw bytes (0x%x):", blob_ln);
-    printMemory(buffer, blob_ln, 0x10, 0);
+    DPrintMemCol8(buffer, blob_ln, 0);
     ptr = ((PBYTE)(blob + 1));
     printf("bc blob exponent (0x%x):", blob->cbPublicExp);
-    printMemory(ptr, blob->cbPublicExp, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbPublicExp, 0);
     ptr += blob->cbPublicExp;
     printf("blob data (0x%x):", blob->cbModulus);
-    printMemory(ptr, blob->cbModulus, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbModulus, 0);
 #endif
 
     status = writeFileBytes(path, (UCHAR*)blob, blob_ln);
@@ -767,7 +763,7 @@ int RSA_importPrivKeyFromFile(
         printf("\n");
     }
     printf("file bytes (0x%x):", (key_buffer_ln));
-    printMemory(key_buffer, key_buffer_ln, 0x10, 0);
+    DPrintMemCol8(key_buffer, key_buffer_ln, 0);
 #endif
 
 //    if ( type == KEY_TYPE_PUB || type == KEY_TYPE_PEM )
@@ -874,7 +870,7 @@ int RSA_importPrivKeyFromFile(
     }
 #ifdef DEBUG_PRINT
     printf("key bytes (0x%x):", key_bytes_ln);
-    printMemory(key_bytes, key_bytes_ln, 0x10, 0);
+    DPrintMemCol8(key_bytes, key_bytes_ln, 0);
 #endif
 
     if ( wc_blob == NULL && key_bytes != NULL )
@@ -969,7 +965,7 @@ int RSA_importPrivKeyFromFile(
     
 #ifdef DEBUG_PRINT
     printf("blob raw bytes (0x%x):", blob_ln);
-    printMemory(pbC, blob_ln, 0x10, 0);
+    DPrintMemCol8(pbC, blob_ln, 0);
 
     printf("wc blob\n");
     printf(" bType: 0x%x\n", wc_blob->bType);
@@ -992,19 +988,19 @@ int RSA_importPrivKeyFromFile(
     
     bcb_ptr = (PBYTE)(blob + 1);
     printf("  exponent (0x%x):", blob->cbPublicExp);
-    printMemory(bcb_ptr, blob->cbPublicExp, 0x10, 0);
+    DPrintMemCol8(bcb_ptr, blob->cbPublicExp, 0);
     
     bcb_ptr += blob->cbPublicExp;
     printf("blob modulus (0x%x):", blob->cbModulus);
-    printMemory(bcb_ptr, blob->cbModulus, 0x10, 0);
+    DPrintMemCol8(bcb_ptr, blob->cbModulus, 0);
     
     bcb_ptr += blob->cbModulus;
     printf("blob prime1 (0x%x):", blob->cbPrime1);
-    printMemory(bcb_ptr, blob->cbPrime1, 0x10, 0);
+    DPrintMemCol8(bcb_ptr, blob->cbPrime1, 0);
 
     bcb_ptr += blob->cbPrime1;
     printf("blob prime2 (0x%x):", blob->cbPrime2);
-    printMemory(bcb_ptr, blob->cbPrime2, 0x10, 0);
+    DPrintMemCol8(bcb_ptr, blob->cbPrime2, 0);
 #endif
 
     status = BCryptImportKeyPair(
@@ -1104,7 +1100,7 @@ int RSA_exportPrivKeyToDER(
     
 #ifdef DEBUG_PRINT
     printf("bc blob raw bytes (0x%x):", blob_ln);
-    printMemory(buffer, blob_ln, 0x10, 0);
+    DPrintMemCol8(buffer, blob_ln, 0);
 
     printf("bc blob\n");
     printf(" Magic: 0x%x (%.4s)\n", blob->Magic, (CHAR*)&blob->Magic);
@@ -1115,16 +1111,16 @@ int RSA_exportPrivKeyToDER(
     printf(" cbPrime2: 0x%x\n", blob->cbPrime2);
     ptr = ((PBYTE)(blob + 1));
     printf("  exponent (0x%x):", blob->cbPublicExp);
-    printMemory(ptr, blob->cbPublicExp, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbPublicExp, 0);
     ptr += blob->cbPublicExp;
     printf("  modulus (0x%x):", blob->cbModulus);
-    printMemory(ptr, blob->cbModulus, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbModulus, 0);
     ptr += blob->cbModulus;
     printf("  prime1 (0x%x):", blob->cbPrime1);
-    printMemory(ptr, blob->cbPrime1, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbPrime1, 0);
     ptr += blob->cbPrime1;
     printf("  prime2 (0x%x):", blob->cbPrime2);
-    printMemory(ptr, blob->cbPrime2, 0x10, 0);
+    DPrintMemCol8(ptr, blob->cbPrime2, 0);
 #endif
 //
 //    //typedef struct _PUBLICKEYSTRUC {
@@ -1160,7 +1156,7 @@ int RSA_exportPrivKeyToDER(
 //    
 //#ifdef DEBUG_PRINT
 //    printf("wc blob raw bytes (0x%x):", wc_blob_ln);
-//    printMemory(wc_buffer, wc_blob_ln, 0x10, 0);
+//    DPrintMemCol8(wc_buffer, wc_blob_ln, 0);
 //
 //    printf("convert to pubkey info\n");
 //#endif
@@ -1185,7 +1181,7 @@ int RSA_exportPrivKeyToDER(
 //    }
 //#ifdef DEBUG_PRINT
 //    printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
-//    printMemory((PBYTE)publicKeyInfo, publicKeyInfoLen, 0x10, 0);
+//    DPrintMemCol8((PBYTE)publicKeyInfo, publicKeyInfoLen, 0);
 //#endif
 
 
@@ -1213,7 +1209,7 @@ int RSA_exportPrivKeyToDER(
 //#ifdef ERROR_PRINT
 //    printf("publicKeyInfo_t : %p\n", publicKeyInfo_t);
 //    printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
-//    printMemory(publicKeyInfo_t, publicKeyInfoLen, 0x10, 1);
+//    DPrintMemCol8(publicKeyInfo_t, publicKeyInfoLen, 0x10, 1);
 //    printf(" Algorithm\n");
 //    printf("  pszObjId: %status (%p)\n", publicKeyInfo_t->Algorithm.pszObjId, publicKeyInfo_t->Algorithm.pszObjId);
 //    printf("  Parameters (0x%x) (%p)\n    ", publicKeyInfo_t->Algorithm.Parameters.cbData, publicKeyInfo_t->Algorithm.Parameters.pbData);
@@ -1248,7 +1244,7 @@ int RSA_exportPrivKeyToDER(
 //    
 //#ifdef DEBUG_PRINT
 //    printf("DER bytes (0x%x):", der_buffer_ln);
-//    printMemory(der_buffer, der_buffer_ln, 0x10, 0);
+//    DPrintMemCol8(der_buffer, der_buffer_ln, 0);
 //#endif
 
     (path);

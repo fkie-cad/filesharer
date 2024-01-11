@@ -15,8 +15,8 @@ Compiles and runs under
 
 
 ## Version ##
-1.4.2  
-Last changed: 12.11.2022
+1.4.3  
+Last changed: 11.01.2024
 
 
 ## Requirements

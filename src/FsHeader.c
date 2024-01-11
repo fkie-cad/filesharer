@@ -1,6 +1,7 @@
 #include "string.h"
 
 #include "FsHeader.h"
+#include "../shared/print.h"
 
 FsKeyHeaderOffsets fs_key_header_offsets = {
     .type = 0,
