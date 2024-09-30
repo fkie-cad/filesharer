@@ -378,7 +378,7 @@ int checkParams(
     if ( !f || (f & (f - 1)) != 0 )
     {
         s = -1;
-        EPrint(s, "No valid mode set. Either set server (s) or client (m) mode!\n");
+        EPrint(s, "No valid mode set. Either set server (recv) or client (send|get) mode!\n");
     }
 
     if ( flags & FLAG_ENCRYPTED && key_path == NULL )
@@ -393,10 +393,11 @@ int checkParams(
             s = -1;
             EPrint(s, "No ip set!\n");
         }
-        if ( !fileExists(argv[start_i]) )
+        if ( !fileExists(argv[start_i]) 
+            && !dirExists(argv[start_i]) )
         {
             s = -1;
-            EPrint(s, "No path set!\n");
+            EPrint(s, "No (valid) path set!\n");
         }
     }
     if ( flags & FLAG_SERVER )
@@ -404,7 +405,7 @@ int checkParams(
         if ( !dirExists(argv[start_i]) )
         {
             s = -1;
-            EPrint(s, "No receive dir set!\n");
+            EPrint(s, "No (valid) receive dir set!\n");
         }
     }
     if ( port == NULL )

@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../shared/debug.h"
 #include "../shared/crypto/linux/AESOpenSSL.h"
 
 

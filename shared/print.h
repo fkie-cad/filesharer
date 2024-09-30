@@ -3,8 +3,8 @@
 
 #if DEBUG_PRINT
 #define DPrint(...) \
-                {fprintf(stdout, "[d] ");\
-                 fprintf(stdout, __VA_ARGS__);}
+                {printf("[d] ");\
+                 printf(__VA_ARGS__);}
 #define FPrint() \
                 {printf(DRIVER_NAME ": [f] %s\n", __FUNCTION__)};
 #define DPrintMemCol8(_b_, _s_, _o_) \
@@ -40,6 +40,8 @@
     } \
 }
 #define DPrintMemCol16(_b_, _s_) \
+    if ( _s_ % 2 != 0 ) _s_ = _s_ - 1; \
+    \
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
     { \
         size_t _end_ = (_i_+0x10<_s_)?(_i_+0x10):((size_t)_s_); \
@@ -62,6 +64,8 @@
         printf("\n"); \
     }
 #define DPrintMemCol32(_b_, _s_) \
+    if ( _s_ % 4 != 0 ) _s_ = _s_ - (_s_ % 4); \
+    \
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
     { \
         size_t _end_ = (_i_+0x10<_s_)?(_i_+0x10):((size_t)_s_); \
@@ -74,6 +78,8 @@
         printf("\n"); \
     }
 #define DPrintMemCol64(_b_, _s_) \
+    if ( _s_ % 8 != 0 ) _s_ = _s_ - (_s_ % 8); \
+    \
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
     { \
         size_t _end_ = (_i_+0x10<_s_)?(_i_+0x10):((size_t)_s_); \
@@ -167,7 +173,7 @@
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
     { \
         size_t _end_ = (_i_+0x10<_s_) ? (_i_+0x10) : ((size_t)_s_); \
-        uint32_t _gap_ = (_i_+0x10<=_s_) ? 0 : ((0x10+_i_-(size_t)_s_)*3); \
+        uint32_t _gap_ = (_i_+0x10<=_s_) ? 0 : (uint32_t)((0x10+_i_-(size_t)_s_)*3); \
         printf("%.*zx  ", _hw_w_, (((size_t)_a_)+_i_)); \
          \
         for ( size_t _j_ = _i_, _k_=0; _j_ < _end_; _j_++, _k_++ ) \
@@ -201,6 +207,8 @@
     uint8_t _hw_w_ = 0x10; \
     HEX_CHAR_WIDTH(_hw_v_, _hw_w_); \
     \
+    if ( _s_ % 2 != 0 ) _s_ = _s_ - 1; \
+    \
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
     { \
         size_t _end_ = (_i_+0x10<_s_)?(_i_+0x10):((size_t)_s_); \
@@ -229,6 +237,8 @@
     uint64_t _hw_v_ = (size_t)_a_ + (size_t)_s_; \
     uint8_t _hw_w_ = 0x10; \
     HEX_CHAR_WIDTH(_hw_v_, _hw_w_); \
+    if ( _s_ % 4 != 0 ) _s_ = _s_ - (_s_ % 4); \
+    \
     \
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
     { \
@@ -248,6 +258,8 @@
     uint64_t _hw_v_ = (size_t)_a_ + (size_t)_s_; \
     uint8_t _hw_w_ = 0x10; \
     HEX_CHAR_WIDTH(_hw_v_, _hw_w_); \
+    if ( _s_ % 8 != 0 ) _s_ = _s_ - (_s_ % 8); \
+    \
     \
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
     { \

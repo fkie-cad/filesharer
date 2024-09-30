@@ -7,10 +7,14 @@
     #include "testRSAOpenSSL.h"
     #define __cdecl
 #endif
+#include "testServer.h"
+
 #include <stdint.h>
 
-#define TEST_AES_FLAG (1)
-#define TEST_RSA_FLAG (2)
+#define TEST_NONE_FLAG   (0)
+#define TEST_AES_FLAG    (1)
+#define TEST_RSA_FLAG    (2)
+#define TEST_SERVER_FLAG (4)
 
 int __cdecl main(int argc , char *argv[])
 {
@@ -25,23 +29,29 @@ int __cdecl main(int argc , char *argv[])
         if ( arg[0] != '/' && arg[0] != '-' )
             break;
 
-        if ( arg[1] == 'a' &&  arg[2] == 'e' && arg[3] == 's' && arg[4] == 0 )
+        if ( strcmp(arg, "/aes") == 0 )
         {
             test |= TEST_AES_FLAG;
             continue;
         }
-        if ( arg[1] == 'r' &&  arg[2] == 's' && arg[3] == 'a' && arg[4] == 0 )
+        else if ( strcmp(arg, "/rsa") == 0 )
         {
             test |= TEST_RSA_FLAG;
             continue;
         }
+        else if ( strcmp(arg, "/server") == 0 )
+        {
+            test |= TEST_SERVER_FLAG;
+            continue;
+        }
     }
-    if ( test == 0 )
+    if ( test == TEST_NONE_FLAG )
     {
         //test = 0xFFFF;
         printf("No option provided.\n");
         printf("Usage: Tests /aes.\n");
         printf("Usage: Tests /rsa pub.key priv.key.\n");
+        printf("Usage: Tests /server\n");
     }
 
     if ( test & TEST_RSA_FLAG )
@@ -49,6 +59,9 @@ int __cdecl main(int argc , char *argv[])
 
     if ( test & TEST_AES_FLAG )
         testAES(argc-i , &argv[i]);
+
+    if ( test & TEST_SERVER_FLAG )
+        testServer(argc-i , &argv[i]);
 
     return 0;
 }

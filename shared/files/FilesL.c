@@ -104,42 +104,6 @@ int actOnFilesInDir(const char* path, FileCallback cb, const char** types, uint3
     return s;
 }
 
-size_t expandFilePath(const char* src, char* dest, size_t n)
-{
-    const char* env_home;
-    if ( src[0] == '~' )
-    {
-        env_home = getenv("HOME");
-        if ( env_home != NULL )
-        {
-            snprintf(dest, n, "%s/%s", env_home, &src[2]);
-        }
-        else
-        {
-            snprintf(dest, n, "%s", src);
-        }
-    }
-    else if ( src[0] != '/' )
-    {
-        char cwd[PATH_MAX-10] = {0};
-        if ( getcwd(cwd, PATH_MAX-10) != NULL )
-        {
-            snprintf(dest, n, "%s/%s", cwd, src);
-        }
-        else
-        {
-            snprintf(dest, n, "%s", src);
-        }
-    }
-    else
-    {
-        snprintf(dest, n, "%s", src);
-    }
-    dest[n-1] = 0;
-    
-    return strlen(dest);
-}
-
 int getTempFile(char* buf, const char* prefix)
 {
     int s = 1;
@@ -170,9 +134,18 @@ void listFilesOfDir(char* path)
 
 size_t getFullPathName(const char* src, size_t n, char* full_path, const char** base_name)
 {
-    n = expandFilePath(src, full_path, n);
+    //sin = expandFilePath(src, full_path, n);
+    full_path = realpath(src, full_path);
+    if ( full_path == NULL )
+        return 0;
+    size_t n = strlen(full_path);
     if ( base_name != NULL )
-        getBaseName(full_path, n, base_name);
+    {
+        size_t bn = getBaseName(full_path, n, base_name);
+        if ( !bn )
+            return 0;
+    }
+        //basename()
 
     return n;
 }
@@ -190,7 +163,7 @@ int mkdir_r(const char* dir)
     if (len > sizeof(_path) - 1)
     {
         errno = ENAMETOOLONG;
-        return -1;
+        return errno;
     }
     errno = 0;
     strncpy(_path, path, MAX_PATH);
@@ -198,7 +171,7 @@ int mkdir_r(const char* dir)
     if (errsv != 0)
     {
         printf("ERROR (0x%x): strncpy(%s)!\n", errsv, path);
-        return -1;
+        return errsv;
     }
     _path[MAX_PATH-1] = 0;
 
@@ -215,7 +188,7 @@ int mkdir_r(const char* dir)
                 if (errno != EEXIST)
                 {
                     printf("ERROR (0x%x): Creating directory \"%s\" failed!\n", errsv, _path);
-                    return -1;
+                    return errno;
                 }
             }
 
@@ -226,7 +199,7 @@ int mkdir_r(const char* dir)
     if ( mkdir(_path, S_IRWXU) != 0 )
     {
         if ( errno != EEXIST )
-            return -1;
+            return errno;
     }
 
     return 0;

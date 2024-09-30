@@ -70,9 +70,10 @@
       <AdditionalDependencies>%(AdditionalDependencies);ntdll.lib;ws2_32.lib;Bcrypt.lib;Crypt32.lib;</AdditionalDependencies>
     </Link>
     <ClCompile>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <TreatWarningAsError>false</TreatWarningAsError>
       <WarningLevel>Level4</WarningLevel>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);shared\;</AdditionalIncludeDirectories>
+      <EnablePreFAST>true</EnablePreFAST>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\shared\;</AdditionalIncludeDirectories>
       <ExceptionHandling></ExceptionHandling>
       <PrecompiledHeader></PrecompiledHeader>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks> <!-- /RTC -->
@@ -83,10 +84,10 @@
       <!--<LanguageStandard>c99</LanguageStandard>-->
     </ClCompile>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);shared\;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\shared\;</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);shared\;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\shared\;</AdditionalIncludeDirectories>
     </Midl>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
@@ -120,17 +121,25 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  
-  <ItemDefinitionGroup Condition="'$(DebugPrint)'!='0'">
+
+  <ItemDefinitionGroup Condition="'$(DebugPrint)'!='0' And '$(DebugPrint)'!=''">
     <ClCompile>
       <PreprocessorDefinitions>DEBUG_PRINT=$(DebugPrint);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(ErrorPrint)'!='0' And '$(ErrorPrint)'!=''">
+    <ClCompile>
+      <PreprocessorDefinitions>ERROR_PRINT=$(ErrorPrint);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   
   <ItemGroup>
+    <ClCompile Include="..\shared\collections\Fifo.c" />
     <ClCompile Include="..\shared\crypto\windows\RSACNG.c" />
     <ClCompile Include="..\shared\crypto\windows\AESCNG.c" />
-    <ClCompile Include="..\shared\debug.c" />
+    <ClCompile Include="..\shared\files\Files.c" />
+    <ClCompile Include="..\shared\files\FilesW.c" />
     <ClCompile Include="test.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
@@ -139,9 +148,9 @@
     <Message Text="PlatformToolset = $(PlatformToolset)" />
     <Message Text="Project Name = $(MSBuildProjectName)" />
     <Message Text="Project File Name = $(MSBuildProjectFile)" />
-	<Message Text="ConfigurationType = $(ConfigurationType)" />
-	<Message Text="Configuration = $(Configuration)" />
-	<Message Text="Platform = $(Platform)" />
+    <Message Text="ConfigurationType = $(ConfigurationType)" />
+    <Message Text="Configuration = $(Configuration)" />
+    <Message Text="Platform = $(Platform)" />
     <Message Text="IntDir = $(IntDir)" />
     <Message Text="OutDir = $(OutDir)" />
     <Message Text="TargetPath = $(TargetPath)" />

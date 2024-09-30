@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "../shared/crypto/windows/RSACNG.h"
-#include "../shared/debug.h"
+#include "../shared/print.h"
 
 #define BUFFER_SIZE (0x200)
 #define PLAIN_SIZE (0x14)
@@ -156,7 +156,7 @@ void testRSA(int argc , char *argv[])
     
     
         printf("RSA_decrypt");
-        printMemory(encrypted, encrypted_ln, 0x10, 0);
+        PrintMemCol8(encrypted, encrypted_ln, 0);
         s = RSA_decrypt(&ctxt, encrypted, encrypted_ln, &decrypted, &decrypted_ln);
         if ( s != 0 )
         {
@@ -164,7 +164,7 @@ void testRSA(int argc , char *argv[])
             goto clean;
         }
         printf("RSA_decrypt success");
-        printMemory(decrypted, decrypted_ln, 0x10, 0);
+        PrintMemCol8(decrypted, decrypted_ln, 0);
         if ( memcmp(o_plain, decrypted, plain_ln) == 0 && plain_ln == decrypted_ln )
             printf("decrypted == plain\n");
         else
@@ -175,7 +175,7 @@ void testRSA(int argc , char *argv[])
     if ( test_signing )
     {
         printf("RSA_sign");
-        printMemory(hash, hash_ln, 0x10, 0);
+        PrintMemCol8(hash, hash_ln, 0);
         s = RSA_signHash(&ctxt, hash, hash_ln, &signature_ptr, &signature_ln);
         //s = RSA_signHash2(&ctxt, hash, hash_ln, &signature_ptr, &signature_ln);
         if ( s != 0 )
@@ -184,11 +184,11 @@ void testRSA(int argc , char *argv[])
             goto clean;
         }
         printf("RSA_sign success");
-        printMemory(signature_ptr, signature_ln, 0x10, 0);
+        PrintMemCol8(signature_ptr, signature_ln, 0);
         printf("--------------------\n");
 
         printf("RSA_verify");
-        printMemory(signature_ptr, signature_ln, 0x10, 0);
+        PrintMemCol8(signature_ptr, signature_ln, 0);
         decrypted_ln = BUFFER_SIZE;
         s = RSA_verifyHash(&ctxt, hash, hash_ln, &signature_ptr, &signature_ln);
         //s = RSA_verifyHash2(&ctxt, signature_ptr, signature_ln, &decrypted, &decrypted_ln);
@@ -198,8 +198,8 @@ void testRSA(int argc , char *argv[])
             goto clean;
         }
         printf("RSA_verify success");
-        printMemory(decrypted, decrypted_ln, 0x10, 0);
-        printMemory(o_hash, hash_ln, 0x10, 0);
+        PrintMemCol8(decrypted, decrypted_ln, 0);
+        PrintMemCol8(o_hash, hash_ln, 0);
         printf(" hash_ln: 0x%x\n", hash_ln);
         printf(" decrypted_ln: 0x%x\n", decrypted_ln);
         if ( memcmp(o_hash, decrypted, hash_ln) == 0 && hash_ln == decrypted_ln )

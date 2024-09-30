@@ -710,7 +710,7 @@ bool checkHash(char* path, uint8_t* f_hash)
 
 int createFilePath(
     char* FilePath, 
-    uint32_t FilePathSize, 
+    uint32_t FilePathMaxSize, 
     char* ParentDir, 
     char* SubDir, 
     char* BaseName, 
@@ -721,26 +721,67 @@ int createFilePath(
 )
 {
     int s = 0;
+
+    char* tmpPath = malloc(FilePathMaxSize);
+    if ( !tmpPath )
+    {
+        s = getLastError();
+        goto clean;
+    }
     
-    memset(FilePath, 0, FilePathSize);
-    int pb = sprintf(FilePath, "%s", ParentDir);
+    memset(FilePath, 0, FilePathMaxSize);
+    memset(tmpPath, 0, FilePathMaxSize);
+    int pb = sprintf(tmpPath, "%s", ParentDir);
     if ( FileHeader->sub_dir_ln != 0 )
     {
         convertPathSeparator(SubDir);
-        pb += sprintf(&FilePath[pb], "%c%s", PATH_SEPARATOR, SubDir);
+        cropTrailingSlash(SubDir);
+        // construct directory string
+        pb += sprintf(&tmpPath[pb], "%c%s", PATH_SEPARATOR, SubDir);
+        // get abs path
+        size_t pb2 = getFullPathName(tmpPath, FilePathMaxSize, FilePath, NULL);
+        // check if we are still in ParentDir
+        if ( !pb2 || pb2 >= FilePathMaxSize 
+            || strncmp(FilePath, ParentDir, strlen(ParentDir)) != 0 )
+        {
+            s = -2;
+            goto clean;
+        }
+
+        // create directory
         s = mkdir_r(FilePath);
         if ( s != 0 )
-        {
-            sendAnswer(4, FS_ERROR_CREATE_DIR, 0, ClientSocket, IsEncrypted, KeyHeader);
-            return s;
-        }
+            goto clean;
     }
 
-    s = sprintf(&FilePath[pb], "%c%s", PATH_SEPARATOR, BaseName);
-    if ( s < 0 || s >= (int)FilePathSize )
-        return s;
+    // construct full file path
+    pb = sprintf(&tmpPath[pb], "%c%s", PATH_SEPARATOR, BaseName);
+    if ( pb < 0 || pb >= (int)FilePathMaxSize )
+    {
+        s = getLastError();
+        goto clean;
+    }
+    // get abs path
+    char* checkBaseName = NULL;
+    pb = getFullPathName(tmpPath, FilePathMaxSize, FilePath, &checkBaseName);
+    // check if we are still in ParentDir and baseName fits
+    if ( !pb || pb >= FilePathMaxSize 
+        || strncmp(FilePath, ParentDir, strlen(ParentDir)) != 0
+        || strcmp(checkBaseName, BaseName) != 0 )
+    {
+        s = -3;
+        goto clean;
+    }
     s = 0;
 
+    memcpy(FilePath, tmpPath, pb);
+
+clean:
+    if ( s != 0 )
+    {
+        sendAnswer(4, FS_ERROR_CREATE_DIR, 0, ClientSocket, IsEncrypted, KeyHeader);
+        memset(FilePath, 0, FilePathMaxSize);
+    }
     return s;
 }
 
@@ -780,7 +821,7 @@ int writeBlockToFile(
         memcpy(tmp_iv, key_header->iv, AES_IV_SIZE);
         rotate64Iv(tmp_iv, enc_part_i);
         DPrint("iv: ");
-        PrintMemBytes(tmp_iv, 0x10);
+        DPrintMemCol8(tmp_iv, 0x10, 0);
 
         buffer_ptr = (uint8_t*)(file_buffer);
         s = decryptData(file_buffer, *buffer_size, &buffer_ptr, buffer_size, tmp_iv, AES_IV_SIZE);
@@ -820,27 +861,3 @@ int writeBlockToFile(
 
     return s;
 }
-
-//void printUsage()
-//{
-//    printf("Usage: %s port rec%cdir [%ci 4|6] [%ck path%cto%ckey]\n", APP_NAME, PATH_SEPARATOR, PARAM_IDENTIFIER, PARAM_IDENTIFIER, PATH_SEPARATOR, PATH_SEPARATOR);
-//    printf("\n");
-//    printf("Version: %s\n", APP_VERSION);
-//    printf("Last changed: %s\n", APP_LAST_CHANGED);
-//}
-
-//void printHelp()
-//{
-//#ifdef _WIN32
-//    const char* key_type = "der";
-//#else
-//    const char* key_type = "pem";
-//#endif
-//
-//    printUsage();
-//    printf("\nOptions\n");
-//    printf(" - port : The server listening port.\n");
-//    printf(" - rec%cdir : The existing base directory, the shared files are stored in.\n", PATH_SEPARATOR);
-//    printf(" - %ci : IP version 4 (default) or 6.\n", PARAM_IDENTIFIER);
-//    printf(" - %ck : Path to a private key.%s file to decrypt encrypted data from the client.\n", PARAM_IDENTIFIER, key_type);
-//}

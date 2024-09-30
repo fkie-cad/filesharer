@@ -9,7 +9,7 @@
 int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32_t flags, void* params, int* killed)
 {
     HANDLE hFind = INVALID_HANDLE_VALUE;
-    WIN32_FIND_DATA ffd;
+    WIN32_FIND_DATAA ffd;
     char* mask = "*";
     char spec[MAX_PATH];
     char* act_path = NULL;
@@ -17,12 +17,10 @@ int actOnFilesInDir(const char* dir, FileCallback cb, const char** types, uint32
     int s = 1;
     PFifoEntry entry;
     (void)types;
-    int recursive = flags & FILES_FLAG_RECURSIVE;
+    int recursive = (flags&FILES_FLAG_RECURSIVE)>=1;
 
     if ( !dirExists(dir) )
-    {
         return 0;
-    }
 
     //cropTrailingSlash(dir);
 
@@ -169,12 +167,12 @@ int mkdir_r(const char* dir)
     if ( len > sizeof(_path) - 1 )
     {
         errno = ENAMETOOLONG;
-        return -1;
+        return errno;
     }
     errsv = strcpy_s(_path, MAX_PATH, path);
     if ( errsv != 0 )
     {
-        return -1;
+        return errno;
     }
     _path[MAX_PATH-1] = 0;
 
@@ -191,7 +189,7 @@ int mkdir_r(const char* dir)
                 errsv = GetLastError();
                 if (errsv != ERROR_ALREADY_EXISTS)
                 {
-                    return -1;
+                    return errno;
                 }
             }
 
@@ -205,7 +203,7 @@ int mkdir_r(const char* dir)
         errsv = GetLastError();
         if ( errsv != ERROR_ALREADY_EXISTS )
         {
-            return -1;
+            return errno;
         }
     }
 

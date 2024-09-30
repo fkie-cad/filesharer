@@ -668,6 +668,7 @@ int sendDir(const char* dir_path, SOCKET sock, uint16_t flags)
     uint32_t act_flags = 0;
     if ( flags&FLAG_RECURSIVE )
         act_flags |= FILES_FLAG_RECURSIVE;
+    DPrint(" - act_flags: %d\n", act_flags);
     actOnFilesInDir(dir_path, &fileCB, NULL, act_flags, &params, &(params.killed));
 
     return s;
