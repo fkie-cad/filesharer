@@ -189,6 +189,7 @@ int runClient(
     printf("Bye.\n");
 
 clean:
+    shutdown(sock, SD_BOTH);
 
     return s;
 }

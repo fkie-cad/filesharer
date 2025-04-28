@@ -18,20 +18,17 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  
   <PropertyGroup Label="Globals">
     <ProjectGuid>{46591772-461a-4904-98b0-722584ba5da6}</ProjectGuid>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
     <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
   </PropertyGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  
   <PropertyGroup Label="Configuration">
     <TargetVersion>Windows10</TargetVersion>
     <TargetPlatform>Desktop</TargetPlatform>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Release'">
@@ -40,18 +37,14 @@
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Debug'">
     <UseDebugLibraries>True</UseDebugLibraries>
   </PropertyGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  
   <PropertyGroup>
     <OutDir>build\$(Configuration)\$(Platform)</OutDir>
   </PropertyGroup>
-  
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
   </ImportGroup>
   <ItemGroup Label="WrappedTaskItems" />
-  
   <PropertyGroup>
     <TargetName>FShare</TargetName>
   </PropertyGroup>
@@ -71,7 +64,6 @@
     <IntDir>build\debug\32\$(MSBuildProjectName)\</IntDir>
     <OutDir>build\debug\32\</OutDir>
   </PropertyGroup>
-  
   <ItemDefinitionGroup>
     <Link>
       <AdditionalOptions>/GUARD:cf %(AdditionalOptions)</AdditionalOptions>
@@ -82,10 +74,14 @@
       <TreatWarningAsError>false</TreatWarningAsError>
       <WarningLevel>Level4</WarningLevel>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);shared\;</AdditionalIncludeDirectories>
-      <ExceptionHandling></ExceptionHandling>
-      <PrecompiledHeader></PrecompiledHeader>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks> <!-- /RTC -->
-      <SDLCheck>true</SDLCheck> <!-- /sdl additional security checks -->
+      <ExceptionHandling>
+      </ExceptionHandling>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <!-- /RTC -->
+      <SDLCheck>true</SDLCheck>
+      <!-- /sdl additional security checks -->
       <!--<FunctionLevelLinking>true</FunctionLevelLinking>-->
       <!--<IntrinsicFunctions>true</IntrinsicFunctions>-->
       <PreprocessorDefinitions>ERROR_PRINT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -99,31 +95,26 @@
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);shared\;</AdditionalIncludeDirectories>
     </Midl>
   </ItemDefinitionGroup>
-  
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
     </ClCompile>
   </ItemDefinitionGroup>
-  
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
     </ClCompile>
   </ItemDefinitionGroup>
-  
   <ItemDefinitionGroup Condition="'$(RunTimeLib)'=='Release'">
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
   </ItemDefinitionGroup>
-  
   <ItemDefinitionGroup Condition="'$(RunTimeLib)'=='Debug'">
     <ClCompile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
   </ItemDefinitionGroup>
-  
   <ItemDefinitionGroup Condition="'$(PDB)'!='1'">
     <ClCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -134,19 +125,16 @@
       <AdditionalOptions>/NOCOFFGRPINFO %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
-
   <ItemDefinitionGroup Condition="'$(DebugPrint)'!='0' And '$(DebugPrint)'!=''">
     <ClCompile>
       <PreprocessorDefinitions>DEBUG_PRINT=$(DebugPrint);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
-
   <ItemDefinitionGroup Condition="'$(ErrorPrint)'!='0' And '$(ErrorPrint)'!=''">
     <ClCompile>
       <PreprocessorDefinitions>ERROR_PRINT=$(ErrorPrint);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
-  
   <ItemGroup>
     <ClCompile Include="src\fshare.c" />
     <ClCompile Include="src\client.c" />
@@ -162,9 +150,7 @@
     <ClCompile Include="shared\net\winSock.c" />
     <ClCompile Include="shared\net\sock.c" />
   </ItemGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-    
   <Target Name="DisplayMessages" AfterTargets="Build">
     <Message Text="PlatformToolset = $(PlatformToolset)" />
     <Message Text="Project Name = $(MSBuildProjectName)" />

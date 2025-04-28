@@ -19,7 +19,7 @@ set /a ep=1
 set /a verbose=0
 
 set buildTools="C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools"
-set pts=v142
+set pts=v143
 
 
 :: default
