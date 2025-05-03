@@ -22,7 +22,6 @@ Last changed: 11.01.2024
 ## Requirements
 ### Linux ###
 - gcc
-- [cmake]
 - Openssl (dev) library (openssl-dev, libssl-dev or sth. like that)
 
 ### Windows ###
@@ -45,15 +44,15 @@ If a "VCRUNTIMExxx.dll not found Error" occurs on the target system, statically 
 This is done by using the `/p:RunTimeLib=Debug|Release` (msbuild) or `/rtl` (winBuild.bat) flag.
 
 
-### Linux gcc + cmake 
+### Linux gcc
 ```bash
-$ ./linuxBuild.sh [-t app] [-m Debug|Release] [-h]
+$ ./linuxBuild.sh [-t app] [-d|-r] [-h]
 ```
 
 ### Linux gcc plain
 ```bash
 $ mkdir build
-$ gcc -o build/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast src/fshare.c src/client.c src/server.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared -L/usr/lib -lssl -lcrypto 
+$ gcc -o build/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 -Ofast src/fshare.c src/client.c src/server.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared -L/usr/lib -lssl -lcrypto 
 ```
 
 `-L/usr/lib -lssl -lcrypto` may be placed behind -Ofast, if linking errors occur.
@@ -125,7 +124,7 @@ If memory is low, this value may be decreased, at least down to 0x1000.
 
 After each block, the client waits for an answer of the server, which slows down the process.
 To speed up the transfer, the value may be increased (theoretically) up to 0xFFFFFFFF. 
-The upper limit comes due to the MS BCrypt limit, that expects a ULONG (32-bit int) as the length value in en/decryption functions.
+The upper limit comes due to the MS BCrypt limit, that expects a ULONG (32-bit uint) as the length value in en/decryption functions.
 
 
 ### Encryption
