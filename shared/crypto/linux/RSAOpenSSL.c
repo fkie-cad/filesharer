@@ -61,8 +61,8 @@ int RSA_importPubKeyFromFile(
         EPrint((int)ERR_get_error(), "OSSL_DECODER_CTX_new_for_pkey failed.\n");
         return -1;
     }
-    DPrint("pkey: %p\n", pkey);
-    DPrint("libctx: %p\n", libctx);
+    DPrint("pkey: %p\n", (void*)pkey);
+    DPrint("libctx: %p\n", (void*)libctx);
 //    if (pass != NULL)
 //        OSSL_ENCODER_CTX_set_passphrase(ectx, pass, strlen(pass));
 
@@ -92,7 +92,7 @@ int RSA_importPubKeyFromFile(
         s = -4;
         goto clean;
     }
-    DPrint("pub_ctx: %p\n", ctxt->pub_ctx);
+    DPrint("pub_ctx: %p\n", (void*)ctxt->pub_ctx);
 
 clean:
     if ( file )
@@ -129,7 +129,7 @@ int pass_cb(char *buf, int size, int rwflag, void *u)
 
     size_t len = strlen(tmp);
 
-    if (len > size)
+    if (len > (size_t)size)
         len = size;
     memcpy(buf, tmp, len);
 
@@ -161,8 +161,8 @@ int RSA_importPrivKeyFromFile(
         EPrint((int)ERR_get_error(), "OSSL_DECODER_CTX_new_for_pkey failed.\n");
         return -1;
     }
-    DPrint("pkey: %p\n", pkey);
-    DPrint("libctx: %p\n", libctx);
+    DPrint("pkey: %p\n", (void*)pkey);
+    DPrint("libctx: %p\n", (void*)libctx);
 
 //    if (passphrase != NULL) {
 //        if (OSSL_DECODER_CTX_set_passphrase(dctx,
@@ -199,7 +199,7 @@ int RSA_importPrivKeyFromFile(
         s = -4;
         goto clean;
     }
-    DPrint("priv_ctx: %p\n", ctxt->priv_ctx);
+    DPrint("priv_ctx: %p\n", (void*)ctxt->priv_ctx);
 
 clean:
     if ( file )

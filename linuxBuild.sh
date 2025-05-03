@@ -72,6 +72,12 @@ function buildTarget() {
     local dp=$4
     local ep=0
 
+echo "target: "$target
+echo "dir: "$dir
+echo "mode: "$mode
+echo "dp: "$dp
+echo "ep: "$ep
+
     if ! mkdir -p ${dir}; then
         return 1
     fi
@@ -87,6 +93,9 @@ function buildTarget() {
         local flags="-Wall -pedantic -Wextra -Ofast -Werror=return-type -Werror=overflow -Werror=format"
     fi
 
+echo "dp "$dp
+echo "ep "$ep
+
     local dpf=
     if [[ $dp > 0 ]]; then
         dpf=-DDEBUG_PRINT=$dp
@@ -96,8 +105,9 @@ function buildTarget() {
     if [[ $ep > 0 ]]; then
         epf=-DERROR_PRINT
     fi
+echo "epf "$epf
 
-    gcc -o ${dir}/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 $flags $dpf $epf -L/usr/lib -lcrypto src/fshare.c src/client.c src/server.c shared/*.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared
+    gcc -o ${dir}/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 $flags $dpf $epf -L/usr/lib -lcrypto src/fshare.c src/client.c src/server.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared
 
     return $?
 }
@@ -179,6 +189,7 @@ echo "clean: "${clean}
 echo "target: "${target}
 echo "mode: "${mode}
 echo "build_dir: "${build_dir}
+echo "debug_print: "${debug_print}
 echo -e
 
 
@@ -189,7 +200,7 @@ elif [[ ${clean} == 2 ]]; then
 fi
 
 if [[ -n ${target} ]]; then
-    buildTarget ${target} ${build_dir} ${mode} ${dp}
+    buildTarget ${target} ${build_dir} ${mode} ${debug_print}
 fi
 
 exit $?

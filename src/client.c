@@ -107,6 +107,8 @@ int runClient(
     uint16_t flags
 )
 {
+    FEnter();
+    
     bool s = 0;
     bool cb = 0;
 
@@ -115,7 +117,7 @@ int runClient(
     int j;
 
     char path[MAX_PATH];
-    const char* base_name = NULL;
+    char* base_name = NULL;
     
     if ( start_i >= argc )
         return -1;
@@ -180,8 +182,8 @@ int runClient(
             sendFile(path, base_name, 0, 0, sock, flags);
         else if ( dirExists(path) )
             sendDir(path, sock, flags);
-        else
-            EPrint(-1, "Path \"%s\" does not exist!\n", path);
+        else {
+            EPrint(-1, "Path \"%s\" does not exist!\n", path); }
 //        if ( !s )
 //            break;
     }
@@ -191,6 +193,7 @@ int runClient(
 clean:
     shutdown(sock, SD_BOTH);
 
+    FLeave();
     return s;
 }
 
@@ -783,7 +786,7 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader*
                 printf("ERROR (0x%x): Writing file failed!\n", answer->code);
                 break;
             case FS_ERROR_CREATE_DIR:
-                printf("ERROR (0x%x): Createing directory failed!\n", answer->code);
+                printf("ERROR (0x%x): Creating directory failed!\n", answer->code);
                 break;
             case FS_ERROR_ALLOC_FILE_BUFFER:
                 printf("ERROR (0x%x): Allocating file buffer failed!\n", answer->code);

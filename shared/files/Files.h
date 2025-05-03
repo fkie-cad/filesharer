@@ -96,7 +96,7 @@ int checkPath(
 size_t getBaseName(
     const char* file_path,
     size_t file_path_ln, 
-    const char** base_name
+    char** base_name
 );
 
 /**

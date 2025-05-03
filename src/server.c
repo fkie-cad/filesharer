@@ -709,7 +709,7 @@ bool checkHash(char* path, uint8_t* f_hash)
 }
 
 int createFilePath(
-    char* FilePath, 
+    char* FilePath, // out
     uint32_t FilePathMaxSize, 
     char* ParentDir, 
     char* SubDir, 
@@ -720,7 +720,19 @@ int createFilePath(
     bool IsEncrypted
 )
 {
+    FEnter();
+    
     int s = 0;
+    
+    DPrint("  FilePath: %s\n", FilePath);
+    DPrint("  FilePathMaxSize: 0x%x\n", FilePathMaxSize);
+    DPrint("  ParentDir: %s\n", ParentDir);
+    DPrint("  SubDir: %s\n", SubDir);
+    DPrint("  BaseName: %s\n", BaseName);
+    DPrint("  FileHeader: %p\n", (void*)FileHeader);
+    DPrint("  KeyHeader: %p\n", (void*)KeyHeader);
+    DPrint("  ClientSocket: %p\n", (void*)ClientSocket);
+    DPrint("  IsEncrypted: %u\n", IsEncrypted);
 
     char* tmpPath = malloc(FilePathMaxSize);
     if ( !tmpPath )
@@ -759,22 +771,29 @@ int createFilePath(
     if ( pb < 0 || pb >= (int)FilePathMaxSize )
     {
         s = getLastError();
+        EPrintP("sprintf failed! (0x%x)\n", s);
         goto clean;
     }
+    DPrint("  tmpPath: %s\n", tmpPath);
     // get abs path
     char* checkBaseName = NULL;
-    pb = getFullPathName(tmpPath, FilePathMaxSize, FilePath, &checkBaseName);
+    pb = getFullPathName(tmpPath, FilePathMaxSize, FilePath, (char**)&checkBaseName);
+    DPrint("pb: 0x%x\n", pb);
+    DPrint("checkBaseName: %s\n", checkBaseName);
     // check if we are still in ParentDir and baseName fits
-    if ( !pb || pb >= FilePathMaxSize 
+    if ( !pb || (uint32_t)pb >= FilePathMaxSize 
         || strncmp(FilePath, ParentDir, strlen(ParentDir)) != 0
         || strcmp(checkBaseName, BaseName) != 0 )
     {
+        EPrintP("parent dir check failed!\n");
         s = -3;
         goto clean;
     }
     s = 0;
 
     memcpy(FilePath, tmpPath, pb);
+    DPrint("  FilePath: %s\n", FilePath);
+    
 
 clean:
     if ( s != 0 )
@@ -782,6 +801,8 @@ clean:
         sendAnswer(4, FS_ERROR_CREATE_DIR, 0, ClientSocket, IsEncrypted, KeyHeader);
         memset(FilePath, 0, FilePathMaxSize);
     }
+    
+    FLeave();
     return s;
 }
 

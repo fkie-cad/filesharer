@@ -5,8 +5,8 @@
 #define DPrint(...) \
                 {printf("[d] ");\
                  printf(__VA_ARGS__);}
-#define FPrint() \
-                {printf(DRIVER_NAME ": [f] %s\n", __FUNCTION__)};
+#define FEnter() printf("[>] %s\n", __func__);
+#define FLeave() printf("[<] %s\n", __func__);
 #define DPrintMemCol8(_b_, _s_, _o_) \
 { \
     for ( size_t _i_ = 0; _i_ < (size_t)_s_; _i_+=0x10 ) \
@@ -125,6 +125,8 @@
 #define DPrint_Ax(__value__, __size__, __prefix__) \
      printf("%s%s: %.*s\n", __prefix__, #__value__, __size__, (PCHAR)__value__);
 #else
+#define FEnter(...)
+#define FLeave(...)
 #define DPrint(...)
 #define DPrintMemCol8(...)
 #define DPrintMemCol16(...)
@@ -140,12 +142,16 @@
 #endif
 
 #if ERROR_PRINT
+#define EPrintP(...) \
+                {fprintf(stdout, "[e] ");\
+                 fprintf(stdout, __VA_ARGS__);}
 #define EPrint(_s_, ...) \
                 {fprintf(stderr, "ERROR (0x%x): ", _s_); \
                  fprintf(stderr, __VA_ARGS__);}
 #define EPrintNl() {fprintf(stderr, "\n");}
 #define EPrintCr() {fprintf(stderr, "\r");}
 #else
+#define EPrintP(...)
 #define EPrint(_s_, ...)
 #define EPrintNl()
 #define EPrintCr()

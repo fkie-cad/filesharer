@@ -241,6 +241,7 @@ int parseParams(
     int* start_i
 )
 {
+    int s = 0;
     int i;
     char* arg = NULL;
     char* val1 = NULL;
@@ -296,8 +297,22 @@ int parseParams(
 
             *flags |= FLAG_CLIENT;
 
-            i++;
-            i++;
+            if ( strstr(*ip, ".") != NULL )
+            {
+                *family = AF_INET;
+            }
+            else if ( strstr(*ip, ":") != NULL )
+            {
+                *family = AF_INET6;
+            }
+            else
+            {
+                s = -1;
+                EPrint(s, "Invalid ip address\n");
+                break;
+            }
+                
+            i += 2;
         }
         else if ( IS_1C_ARG(arg, 'f') )
         {
@@ -329,6 +344,8 @@ int parseParams(
         else if ( IS_1C_ARG(arg, 'v') )
         {
             if ( val1 == NULL )
+                break;;
+            if ( *ip != NULL )
                 break;
 
             ipv = (int)strtoul(val1, NULL, 0);
@@ -354,7 +371,7 @@ int parseParams(
 
     if ( *start_i >= argc ) 
         return -1;
-    return 0;
+    return s;
 }
 #undef IS_1C_ARG
 #undef IS_4C_ARG

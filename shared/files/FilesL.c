@@ -7,7 +7,6 @@
 
 #include <dirent.h>
 
-#include "debug.h"
 #include "print.h"
 #include "FilesL.h"
 #include "collections/Fifo.h"
@@ -132,21 +131,42 @@ void listFilesOfDir(char* path)
     printf("\n");
 }
 
-size_t getFullPathName(const char* src, size_t n, char* full_path, const char** base_name)
+size_t getFullPathName(const char* src, size_t max, char* full_path, char** base_name)
 {
+#ifdef DEBUG_PRINT
+    printf("[>] getFullPathName()\n");
+    printf("  src: %s\n", src);
+#endif
     //sin = expandFilePath(src, full_path, n);
-    full_path = realpath(src, full_path);
-    if ( full_path == NULL )
+    char* fp = realpath(src, full_path);
+#ifdef DEBUG_PRINT
+    printf("  full_path: %s\n", full_path);
+#endif
+    if ( fp == NULL && errno != ENOENT )
+    {
+        printf("[e] realpath failed! (0x%x)\n", errno);
         return 0;
+    }
     size_t n = strlen(full_path);
+#ifdef DEBUG_PRINT
+    printf("  n: 0x%zx\n", n);
+#endif
     if ( base_name != NULL )
     {
         size_t bn = getBaseName(full_path, n, base_name);
+#ifdef DEBUG_PRINT
+        printf("  bn: 0x%zx\n", bn);
+#endif
         if ( !bn )
             return 0;
+#ifdef DEBUG_PRINT
+        printf("  base_name: %s\n", *base_name);
+#endif
     }
-        //basename()
 
+#ifdef DEBUG_PRINT
+    printf("[<] getFullPathName()\n");
+#endif
     return n;
 }
 

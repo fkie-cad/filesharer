@@ -114,9 +114,9 @@ void listFilesOfDir(char* path);
  */
 size_t getFullPathName(
     const char* src,
-    size_t n,
+    size_t max,
     char* full_path, 
-    const char** base_name
+    char** base_name
 );
 
 /**

@@ -71,6 +71,7 @@ int connectSock(
     s = connect(sock , addr_info->ai_addr, (int)addr_info->ai_addrlen);
     if ( s < 0)
     {
+        EPrintP("connect failed! (0x%x)\n", s);
 #if defined(ERROR_PRINT) && defined(_WIN32)
         s = getLastSError();
         if ( s == WSAESHUTDOWN )
@@ -130,7 +131,7 @@ void printSockAddr(PSOCKADDR_STORAGE addr, int addr_ln)
     printf(" - sa_family: 0x%x\n", addr->ss_family);
     if ( addr->ss_family == AF_INET )
     {
-        if ( addr_ln < sizeof(SOCKADDR) )
+        if ( (size_t)addr_ln < sizeof(SOCKADDR) )
             return;
         addr4 = (PSOCKADDR)addr;
         port = ntohs( MAKE_UINT16(&addr4->sa_data[0]) );
@@ -143,7 +144,7 @@ void printSockAddr(PSOCKADDR_STORAGE addr, int addr_ln)
     }
     else
     {
-        if ( addr_ln < sizeof(SOCKADDR_IN6) )
+        if ( (size_t)addr_ln < sizeof(SOCKADDR_IN6) )
             return;
         addr6 = (PSOCKADDR_IN6)addr;
         printf(" - port: 0x%x (%u)\n", ntohs(addr6->sin6_port), ntohs(addr6->sin6_port));

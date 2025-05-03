@@ -128,7 +128,7 @@ int checkPath(const char* path, int is_dir)
 size_t getBaseName(
     const char* file_path,
     size_t file_path_ln, 
-    const char** base_name
+    char** base_name
 )
 {
     if ( file_path == 0 || file_path[0] == 0 || file_path_ln == 0 || base_name == NULL )
