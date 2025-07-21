@@ -27,12 +27,12 @@ NTSTATUS writeFileBytes(
 
 __forceinline
 void ZeroLocalFree(PVOID _b_, SIZE_T _n_) {
-    ZeroMemory(_b_, _n_);
+    RtlSecureZeroMemory(_b_, _n_);
     LocalFree(_b_); 
 }
 __forceinline
 void ZeroFree(PVOID _b_, SIZE_T _n_) {
-    ZeroMemory(_b_, _n_);
+    RtlSecureZeroMemory(_b_, _n_);
     free(_b_);
 }
 
@@ -52,8 +52,8 @@ int RSA_init(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptOpenAlgorithmProvider\n");
-        return -1;
+        EPrintP("BCryptOpenAlgorithmProvider failed! (0x%x)\n", status);
+        return status;
     }
 
     ctxt->padding = BCRYPT_SUPPORTED_PAD_PKCS1_ENC; // random number padding
@@ -118,8 +118,9 @@ int RSA_importPubKeyFromFile(
 
     if ( type == KEY_TYPE_PEM || type > KEY_TYPE_BLOB )
     {
-        EPrint(-1, "Unknown key type\n");
-        return -1;
+        status = STATUS_INVALID_PARAMETER;
+        EPrintP("Unknown key type! (0x%x)\n", status);
+        return status;
     }
 
     status = loadFileBytes(path, &key_buffer, &key_buffer_ln);
@@ -138,7 +139,7 @@ int RSA_importPubKeyFromFile(
         printf("'");
         printf("\n");
     }
-    printf("file bytes (0x%x):", (key_buffer_ln));
+    printf("file bytes (0x%x):\n", (key_buffer_ln));
     DPrintMemCol8(key_buffer, key_buffer_ln, 0);
 #endif
 
@@ -218,14 +219,15 @@ int RSA_importPubKeyFromFile(
         );
         if ( !b )
         {
-            EPrint(GetLastError(), "CryptDecodeObjectEx 1.\n");
-            status = STATUS_UNSUCCESSFUL;
+            //status = STATUS_UNSUCCESSFUL;
+            status = GetLastError();
+            EPrintP("CryptDecodeObjectEx failed 1! (0x%x)\n", status);
             goto clean;
         }
         
 #ifdef DEBUG_PRINT
         printf("publicKeyInfo : %p\n", publicKeyInfo);
-        printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
+        printf("publicKeyInfo bytes (0x%x):\n", publicKeyInfoLen);
         DPrintMemCol8(publicKeyInfo, publicKeyInfoLen, 0);
         printf(" Algorithm\n");
         printf("  pszObjId: %s (%p)\n", publicKeyInfo->Algorithm.pszObjId, publicKeyInfo->Algorithm.pszObjId);
@@ -253,8 +255,8 @@ int RSA_importPubKeyFromFile(
         );
         if ( !b )
         {
-            EPrint(GetLastError(), "CryptDecodeObjectEx 2.\n");
-            status = STATUS_UNSUCCESSFUL;
+            status = GetLastError();
+            EPrintP("CryptDecodeObjectEx failed 2! (0x%x)\n", status);
             goto clean;
         }
 
@@ -318,7 +320,8 @@ int RSA_importPubKeyFromFile(
     pbC = (PBYTE)LocalAlloc(0, blob_ln);
     if ( pbC == NULL )
     {
-        EPrint(GetLastError(), "LocalAlloc\n");
+        status = GetLastError();
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(pbC, blob_ln);
@@ -371,12 +374,12 @@ int RSA_importPubKeyFromFile(
     //PublicExponent[cbPublicExp] // Big-endian.
     //Modulus[cbModulus] // Big-endian.
     
-    printf("blob raw bytes (0x%x):", blob_ln);
+    printf("blob raw bytes (0x%x):\n", blob_ln);
     DPrintMemCol8(pbC, blob_ln, 0);
     
     printf("blob exp: 0x%x\n", (ULONG)*(ULONG*)&blob[1]);
 
-    printf("bc blob bytes (0x%x):", blob->cbModulus);
+    printf("bc blob bytes (0x%x):\n", blob->cbModulus);
     DPrintMemCol8(ptr, blob->cbModulus, 0);
 #endif
 
@@ -391,7 +394,7 @@ int RSA_importPubKeyFromFile(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptImportKeyPair\n");
+        EPrintP("BCryptImportKeyPair failed! (0x%x)\n", status);
         goto clean;
     }
     DPrint("key: %p\n", ctxt->pub_key);
@@ -442,7 +445,7 @@ int RSA_exportPubKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-        EPrint(status, "BCryptExportKey\n");
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -450,7 +453,8 @@ int RSA_exportPubKeyToDER(
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
     if ( buffer == NULL )
     {
-        EPrint(GetLastError(), "LocalAlloc\n");
+        status = GetLastError();
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
@@ -468,7 +472,7 @@ int RSA_exportPubKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-        EPrint(status, "BCryptExportKey\n");
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -481,13 +485,13 @@ int RSA_exportPubKeyToDER(
     printf(" cbPrime1: 0x%x\n", blob->cbPrime1);
     printf(" cbPrime2: 0x%x\n", blob->cbPrime2);
     
-    printf("bc blob raw bytes (0x%x):", blob_ln);
+    printf("bc blob raw bytes (0x%x):\n", blob_ln);
     DPrintMemCol8(buffer, blob_ln, 0);
     ptr = ((PBYTE)(blob + 1));
-    printf("bc blob exponent (0x%x):", blob->cbPublicExp);
+    printf("bc blob exponent (0x%x):\n", blob->cbPublicExp);
     DPrintMemCol8(ptr, blob->cbPublicExp, 0);
     ptr += blob->cbPublicExp;
-    printf("blob data (0x%x):", blob->cbModulus);
+    printf("blob data (0x%x):\n", blob->cbModulus);
     DPrintMemCol8(ptr, blob->cbModulus, 0);
 #endif
 
@@ -507,7 +511,8 @@ int RSA_exportPubKeyToDER(
     wc_buffer = (PBYTE)LocalAlloc(0, wc_blob_ln);
     if ( wc_buffer == NULL )
     {
-        EPrint(GetLastError(), "LocalAlloc\n");
+        status = GetLastError();
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(wc_buffer, wc_blob_ln);
@@ -528,7 +533,7 @@ int RSA_exportPubKeyToDER(
     ReverseMemCopy(&ptr[12], &buffer[24+blob->cbPublicExp], blob->cbModulus);
     
 #ifdef DEBUG_PRINT
-    printf("wc blob raw bytes (0x%x):", wc_blob_ln);
+    printf("wc blob raw bytes (0x%x):\n", wc_blob_ln);
     DPrintMemCol8(wc_buffer, wc_blob_ln, 0);
 
     printf("convert to pubkey info\n");
@@ -545,12 +550,13 @@ int RSA_exportPubKeyToDER(
     );
     if ( !b )
     {
-        EPrint(GetLastError(), "CryptEncodeObjectEx 1.\n");
+        status = GetLastError();
+        EPrintP("CryptEncodeObjectEx failed 1! (0x%x)\n", status);
         status = STATUS_UNSUCCESSFUL;
         goto clean;
     }
 #ifdef DEBUG_PRINT
-    printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
+    printf("publicKeyInfo bytes (0x%x):\n", publicKeyInfoLen);
     DPrintMemCol8((PBYTE)publicKeyInfo, publicKeyInfoLen, 0);
 #endif
     publicKeyInfo_t = (CERT_PUBLIC_KEY_INFO*)malloc(publicKeyInfoLen+0x50);
@@ -576,7 +582,7 @@ int RSA_exportPubKeyToDER(
 
 #ifdef DEBUG_PRINT
     printf("publicKeyInfo_t : %p\n", publicKeyInfo_t);
-    printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
+    printf("publicKeyInfo bytes (0x%x):\n", publicKeyInfoLen);
     DPrintMemCol8(publicKeyInfo_t, publicKeyInfoLen, 0);
     printf(" Algorithm\n");
     printf("  pszObjId: %status (%p)\n", publicKeyInfo_t->Algorithm.pszObjId, publicKeyInfo_t->Algorithm.pszObjId);
@@ -603,13 +609,14 @@ int RSA_exportPubKeyToDER(
     );
     if ( !b )
     {
-        EPrint(GetLastError(), "CryptEncodeObjectEx 3.\n");
+        status = GetLastError();
+        EPrintP("CryptEncodeObjectEx failed 3! (0x%x)\n", status);
         status = STATUS_UNSUCCESSFUL;
         goto clean;
     }
     
 #ifdef DEBUG_PRINT
-    printf("DER bytes (0x%x):", der_buffer_ln);
+    printf("DER bytes (0x%x):\n", der_buffer_ln);
     DPrintMemCol8(der_buffer, der_buffer_ln, 0);
 #endif
 
@@ -655,7 +662,7 @@ int RSA_exportPubKeyToBLOB(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-        EPrint(status, "BCryptExportKey\n");
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -663,7 +670,8 @@ int RSA_exportPubKeyToBLOB(
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
     if ( buffer == NULL )
     {
-        EPrint(GetLastError(), "LocalAlloc\n");
+        status = GetLastError();
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
@@ -681,7 +689,7 @@ int RSA_exportPubKeyToBLOB(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-        EPrint(status, "BCryptExportKey\n");
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -695,13 +703,13 @@ int RSA_exportPubKeyToBLOB(
     printf(" cbPrime2: 0x%x\n", blob->cbPrime2);
     
     PBYTE ptr = NULL;
-    printf("bc blob raw bytes (0x%x):", blob_ln);
+    printf("bc blob raw bytes (0x%x):\n", blob_ln);
     DPrintMemCol8(buffer, blob_ln, 0);
     ptr = ((PBYTE)(blob + 1));
-    printf("bc blob exponent (0x%x):", blob->cbPublicExp);
+    printf("bc blob exponent (0x%x):\n", blob->cbPublicExp);
     DPrintMemCol8(ptr, blob->cbPublicExp, 0);
     ptr += blob->cbPublicExp;
-    printf("blob data (0x%x):", blob->cbModulus);
+    printf("blob data (0x%x):\n", blob->cbModulus);
     DPrintMemCol8(ptr, blob->cbModulus, 0);
 #endif
 
@@ -743,8 +751,9 @@ int RSA_importPrivKeyFromFile(
 
     if ( type == KEY_TYPE_NONE )
     {
-        EPrint(-1, "Unknown key type\n");
-        return -1;
+        status = STATUS_INVALID_PARAMETER;
+        EPrintP("Unknown key type! (0x%x)\n", status);
+        return status;
     }
 
     status = loadFileBytes(path, &key_buffer, &key_buffer_ln);
@@ -762,7 +771,7 @@ int RSA_importPrivKeyFromFile(
         printf("'");
         printf("\n");
     }
-    printf("file bytes (0x%x):", (key_buffer_ln));
+    printf("file bytes (0x%x):\n", (key_buffer_ln));
     DPrintMemCol8(key_buffer, key_buffer_ln, 0);
 #endif
 
@@ -838,8 +847,9 @@ int RSA_importPrivKeyFromFile(
         );
         if ( !b )
         {
-            EPrint(GetLastError(), "CryptDecodeObjectEx 1.\n");
-            status = STATUS_UNSUCCESSFUL;
+            status = GetLastError();
+            //status = STATUS_UNSUCCESSFUL;
+            EPrintP("CryptDecodeObjectEx failed 1! (0x%x)\n", status);
             goto clean;
         }
         
@@ -865,11 +875,11 @@ int RSA_importPrivKeyFromFile(
     else
     {
         status = STATUS_UNSUCCESSFUL;
-        EPrint(status, "unknown key type.\n");
+        EPrintP("unknown key type! (0x%x)\n", status);
         goto clean;
     }
 #ifdef DEBUG_PRINT
-    printf("key bytes (0x%x):", key_bytes_ln);
+    printf("key bytes (0x%x):\n", key_bytes_ln);
     DPrintMemCol8(key_bytes, key_bytes_ln, 0);
 #endif
 
@@ -883,7 +893,7 @@ int RSA_importPrivKeyFromFile(
     if ( wc_blob_pk == NULL || wc_blob_pk->magic != BCRYPT_RSAPRIVATE_MAGIC )
     {
         status = STATUS_UNSUCCESSFUL;
-        EPrint(status, "Not a RSA public key.\n");
+        EPrintP("Not a RSA public key! (0x%x)\n", status);
         goto clean;
     }
 
@@ -909,7 +919,8 @@ int RSA_importPrivKeyFromFile(
     pbC = (PBYTE)LocalAlloc(0, blob_ln);
     if ( pbC == NULL )
     {
-        EPrint(GetLastError(), "LocalAlloc\n");
+        status = GetLastError();
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(pbC, blob_ln);
@@ -964,7 +975,7 @@ int RSA_importPrivKeyFromFile(
 
     
 #ifdef DEBUG_PRINT
-    printf("blob raw bytes (0x%x):", blob_ln);
+    printf("blob raw bytes (0x%x):\n", blob_ln);
     DPrintMemCol8(pbC, blob_ln, 0);
 
     printf("wc blob\n");
@@ -987,19 +998,19 @@ int RSA_importPrivKeyFromFile(
     //Modulus[cbModulus] // Big-endian.
     
     bcb_ptr = (PBYTE)(blob + 1);
-    printf("  exponent (0x%x):", blob->cbPublicExp);
+    printf("  exponent (0x%x):\n", blob->cbPublicExp);
     DPrintMemCol8(bcb_ptr, blob->cbPublicExp, 0);
     
     bcb_ptr += blob->cbPublicExp;
-    printf("blob modulus (0x%x):", blob->cbModulus);
+    printf("blob modulus (0x%x):\n", blob->cbModulus);
     DPrintMemCol8(bcb_ptr, blob->cbModulus, 0);
     
     bcb_ptr += blob->cbModulus;
-    printf("blob prime1 (0x%x):", blob->cbPrime1);
+    printf("blob prime1 (0x%x):\n", blob->cbPrime1);
     DPrintMemCol8(bcb_ptr, blob->cbPrime1, 0);
 
     bcb_ptr += blob->cbPrime1;
-    printf("blob prime2 (0x%x):", blob->cbPrime2);
+    printf("blob prime2 (0x%x):\n", blob->cbPrime2);
     DPrintMemCol8(bcb_ptr, blob->cbPrime2, 0);
 #endif
 
@@ -1014,7 +1025,7 @@ int RSA_importPrivKeyFromFile(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptImportKeyPair\n");
+        EPrintP("BCryptImportKeyPair failed! (0x%x)\n", status);
         goto clean;
     }
     DPrint("key: %p\n", ctxt->priv_key);
@@ -1068,7 +1079,7 @@ int RSA_exportPrivKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-        EPrint(status, "BCryptExportKey\n");
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1076,7 +1087,8 @@ int RSA_exportPrivKeyToDER(
     buffer = (PBYTE)LocalAlloc(0, blob_ln);
     if ( buffer == NULL )
     {
-        EPrint(GetLastError(), "LocalAlloc\n");
+        status = GetLastError();
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
@@ -1094,12 +1106,12 @@ int RSA_exportPrivKeyToDER(
     );
     if ( !NT_SUCCESS(status) || blob_ln_res == 0 )
     {
-        EPrint(status, "BCryptExportKey\n");
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
 #ifdef DEBUG_PRINT
-    printf("bc blob raw bytes (0x%x):", blob_ln);
+    printf("bc blob raw bytes (0x%x):\n", blob_ln);
     DPrintMemCol8(buffer, blob_ln, 0);
 
     printf("bc blob\n");
@@ -1110,16 +1122,16 @@ int RSA_exportPrivKeyToDER(
     printf(" cbPrime1: 0x%x\n", blob->cbPrime1);
     printf(" cbPrime2: 0x%x\n", blob->cbPrime2);
     ptr = ((PBYTE)(blob + 1));
-    printf("  exponent (0x%x):", blob->cbPublicExp);
+    printf("  exponent (0x%x):\n", blob->cbPublicExp);
     DPrintMemCol8(ptr, blob->cbPublicExp, 0);
     ptr += blob->cbPublicExp;
-    printf("  modulus (0x%x):", blob->cbModulus);
+    printf("  modulus (0x%x):\n", blob->cbModulus);
     DPrintMemCol8(ptr, blob->cbModulus, 0);
     ptr += blob->cbModulus;
-    printf("  prime1 (0x%x):", blob->cbPrime1);
+    printf("  prime1 (0x%x):\n", blob->cbPrime1);
     DPrintMemCol8(ptr, blob->cbPrime1, 0);
     ptr += blob->cbPrime1;
-    printf("  prime2 (0x%x):", blob->cbPrime2);
+    printf("  prime2 (0x%x):\n", blob->cbPrime2);
     DPrintMemCol8(ptr, blob->cbPrime2, 0);
 #endif
 //
@@ -1155,7 +1167,7 @@ int RSA_exportPrivKeyToDER(
 //    ReverseMemCopy(&ptr[12], &buffer[24+blob->cbPublicExp], blob->cbModulus);
 //    
 //#ifdef DEBUG_PRINT
-//    printf("wc blob raw bytes (0x%x):", wc_blob_ln);
+//    printf("wc blob raw bytes (0x%x):\n", wc_blob_ln);
 //    DPrintMemCol8(wc_buffer, wc_blob_ln, 0);
 //
 //    printf("convert to pubkey info\n");
@@ -1180,7 +1192,7 @@ int RSA_exportPrivKeyToDER(
 //        goto clean;
 //    }
 //#ifdef DEBUG_PRINT
-//    printf("publicKeyInfo bytes (0x%x):", publicKeyInfoLen);
+//    printf("publicKeyInfo bytes (0x%x):\n", publicKeyInfoLen);
 //    DPrintMemCol8((PBYTE)publicKeyInfo, publicKeyInfoLen, 0);
 //#endif
 
@@ -1298,7 +1310,7 @@ int RSA_encrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptEncrypt get size\n");
+        EPrintP("BCryptEncrypt get size! (0x%x)\n", status);
         goto clean;
     }
     DPrint("required_size: 0x%x\n", required_size);
@@ -1308,7 +1320,8 @@ int RSA_encrypt(
         *encrypted = (PUCHAR)malloc(required_size);
         if ( *encrypted == NULL )
         {
-            EPrint(GetLastError(), "malloc out buffer\n");
+        status = GetLastError();
+            EPrintP("malloc out buffer failed! (0x%x)\n", status);
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1318,7 +1331,7 @@ int RSA_encrypt(
         if ( required_size > *encrypted_ln )
         {
             status = STATUS_NO_MEMORY;
-            EPrint(status, "Provided encryption buffer[0x%x] is too small! 0x%x needed.\n", *encrypted_ln, required_size);
+            EPrintP("Provided encryption buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *encrypted_ln, required_size, status);
             goto clean;
         }
     }
@@ -1341,7 +1354,7 @@ int RSA_encrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptEncrypt\n");
+        EPrintP("BCryptEncrypt failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -1381,7 +1394,7 @@ int RSA_decrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptDecrypt get size\n");
+        EPrintP("BCryptDecrypt get size! (0x%x)\n", status);
         goto clean;
     }
     DPrint("required_size: 0x%x\n", required_size);
@@ -1392,8 +1405,9 @@ int RSA_decrypt(
         *plain = (PUCHAR)malloc(required_size);
         if ( *plain == NULL )
         {
-            EPrint(GetLastError(), "malloc out buffer\n");
-            status = STATUS_NO_MEMORY;
+            status = GetLastError();
+            //status = STATUS_NO_MEMORY;
+            EPrintP("malloc out buffer failed! (0x%x)\n", status);
             goto clean;
         }
     }
@@ -1402,7 +1416,7 @@ int RSA_decrypt(
         if ( required_size > *plain_ln )
         {
             status = STATUS_NO_MEMORY;
-            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *plain_ln, required_size);
+            EPrintP("Provided plain buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *plain_ln, required_size, status);
             goto clean;
         }
     }
@@ -1425,7 +1439,7 @@ int RSA_decrypt(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptDecrypt\n");
+        EPrintP("BCryptDecrypt failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1434,7 +1448,6 @@ clean:
     return (int)status;
 }
 
-ULONG padding_type = 4;
 int RSA_signHash(
     PRSA_CTXT ctxt,
     PUCHAR hash,
@@ -1443,52 +1456,34 @@ int RSA_signHash(
     PULONG signature_ln
 )
 {
+    FEnter();
+
     NTSTATUS status = STATUS_SUCCESS;
     ULONG required_size = 0;
-    ULONG padding = 0;
-    PVOID pad_info_ptr = NULL;
+    ULONG flags = BCRYPT_PAD_PKCS1;
 
-    if ( padding_type == 1 )
-    {
-        padding = BCRYPT_PAD_PKCS1; // random number padding
-        BCRYPT_PKCS1_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info_ptr = &pad_info;
-    }
-    else if ( padding_type == 2 )
-    {
-        padding = BCRYPT_PAD_PSS; // fill and pass pad_info
-        BCRYPT_PSS_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info.cbSalt = 0x12345678;
-        pad_info_ptr = &pad_info;
-    }
-    else if ( padding_type == 3 )
-    {
-        padding = BCRYPT_SUPPORTED_PAD_PKCS1_ENC; // fill and pass pad_info
-        pad_info_ptr = NULL;
-    }
-    else 
-    {
-        padding = 0;
-        pad_info_ptr = NULL;
-    }
+    // The BCRYPT_PKCS1_PADDING_INFO structure is used to provide options for the PKCS #1 padding scheme.
+    // PKCS #1
+    // The recommended standards for the implementation of public-key cryptography based on the RSA algorithm as defined in RFC 3447.
+    BCRYPT_PKCS1_PADDING_INFO pad_info = { 
+        .pszAlgId = BCRYPT_SHA256_ALGORITHM 
+    };
+
+    DPrint("padding: 0x%x\n", flags);
 
     status = BCryptSignHash(
         ctxt->priv_key,
-        pad_info_ptr,
+        &pad_info,
         hash,
         hash_ln,
         NULL,
         0,
         &required_size,
-        padding
+        flags
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptSignHash get size\n");
+        EPrintP("BCryptSignHash get size failed! (0x%x)\n", status);
         goto clean;
     }
     DPrint("required_size: 0x%x\n", required_size);
@@ -1498,7 +1493,8 @@ int RSA_signHash(
         *signature = (PUCHAR)malloc(required_size);
         if ( *signature == NULL )
         {
-            EPrint(GetLastError(), "malloc out buffer\n");
+            status = GetLastError();
+            EPrintP("malloc out buffer failed! (0x%x)\n", status);
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1508,7 +1504,7 @@ int RSA_signHash(
         if ( required_size > *signature_ln )
         {
             status = STATUS_NO_MEMORY;
-            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *signature_ln, required_size);
+            EPrintP("Provided plain buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *signature_ln, required_size, status);
             goto clean;
         }
     }
@@ -1516,23 +1512,24 @@ int RSA_signHash(
     
     status = BCryptSignHash(
         ctxt->priv_key,
-        pad_info_ptr,
+        &pad_info,
         hash,
         hash_ln,
         *signature,
         *signature_ln,
         &required_size,
-        padding
+        flags
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptSignHash\n");
+        EPrintP("BCryptSignHash failed! (0x%x)\n", status);
         goto clean;
     }
 
 clean:
     ;
 
+    FLeave();
     return (int)status;
 }
 
@@ -1545,268 +1542,29 @@ int RSA_verifyHash(
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
-    //ULONG required_size = 0;
-    ULONG padding;
-    PVOID pad_info_ptr = NULL;
-
-    if ( padding_type == 1 )
-    {
-        padding = BCRYPT_PAD_PKCS1; // random number padding
-        BCRYPT_PKCS1_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info_ptr = &pad_info;
-    }
-    else if ( padding_type == 2 )
-    {
-        padding = BCRYPT_PAD_PSS; // fill and pass pad_info
-        BCRYPT_PSS_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info.cbSalt = 0x12345678;
-        pad_info_ptr = NULL;
-    }
-    else 
-    {
-        padding = 0;
-        pad_info_ptr = NULL;
-    }
+    ULONG flags = BCRYPT_PAD_PKCS1;
+    BCRYPT_PKCS1_PADDING_INFO pad_info = { 
+        .pszAlgId = BCRYPT_SHA256_ALGORITHM
+    };
 
     status = BCryptVerifySignature(
         ctxt->pub_key,
-        pad_info_ptr,
+        &pad_info,
         hash,
         hash_ln,
         *signature,
         *signature_ln,
-        padding
+        flags
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "BCryptVerifySignature\n");
+        EPrintP("BCryptVerifySignature failed! (0x%x)\n", status);
         goto clean;
     }
 
 clean:
     ;
 
-    return (int)status;
-}
-
-// Private key encryption
-// Doesn't work, since the (in private key included) public key seems to be used,
-// because decryption (RSA_verify2) doesn't work with public key (wrong params) but with private key,
-// which should only give a valid result, if public key has been used for encryption
-int RSA_signHash2(
-    PRSA_CTXT ctxt,
-    PUCHAR hash,
-    ULONG hash_ln,
-    PUCHAR* signature,
-    PULONG signature_ln
-)
-{
-    NTSTATUS status = STATUS_SUCCESS;
-    ULONG required_size = 0;
-    ULONG padding = 0;
-    PVOID pad_info_ptr = NULL;
-
-    if ( padding_type == 1 )
-    {
-        padding = BCRYPT_PAD_PKCS1; // random number padding
-        BCRYPT_PKCS1_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info_ptr = &pad_info;
-    }
-    else if ( padding_type == 2 )
-    {
-        padding = BCRYPT_PAD_PSS; // fill and pass pad_info
-        BCRYPT_PSS_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info.cbSalt = 0x12345678;
-        pad_info_ptr = &pad_info;
-    }
-    else if ( padding_type == 3 )
-    {
-        padding = BCRYPT_SUPPORTED_PAD_PKCS1_ENC;
-        pad_info_ptr = NULL;
-    }
-    else 
-    {
-        padding = 0;
-        pad_info_ptr = NULL;
-    }
-
-    status = BCryptEncrypt(
-        ctxt->priv_key,
-        hash,
-        hash_ln,
-        pad_info_ptr,
-        NULL,
-        0,
-        NULL,
-        0,
-        &required_size,
-        padding
-    );
-    if ( !NT_SUCCESS(status) )
-    {
-        EPrint(status, "BCryptSignHash get size\n");
-        goto clean;
-    }
-    DPrint("required_size: 0x%x\n", required_size);
-
-    if ( *signature == NULL )
-    {
-        *signature = (PUCHAR)malloc(required_size);
-        if ( *signature == NULL )
-        {
-            EPrint(GetLastError(), "malloc out buffer\n");
-            status = STATUS_NO_MEMORY;
-            goto clean;
-        }
-    }
-    else
-    {
-        if ( required_size > *signature_ln )
-        {
-            status = STATUS_NO_MEMORY;
-            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *signature_ln, required_size);
-            goto clean;
-        }
-    }
-    *signature_ln = required_size;
-    DPrint("required_size: 0x%x\n", required_size);
-    
-    status = BCryptEncrypt(
-        ctxt->priv_key,
-        hash,
-        hash_ln,
-        pad_info_ptr,
-        NULL,
-        0,
-        *signature,
-        *signature_ln,
-        signature_ln,
-        padding
-    );
-    if ( !NT_SUCCESS(status) )
-    {
-        EPrint(status, "BCryptSignHash\n");
-        goto clean;
-    }
-
-clean:
-    ;
-
-    return (int)status;
-}
-
-// Public key decryption
-// Doesn't work (wrong parameter)
-// The wrong parameter seems to be the public key.
-// See notation to RSA_sign2
-int RSA_verifyHash2(
-    PRSA_CTXT ctxt,
-    PUCHAR signature,
-    ULONG signature_ln,
-    PUCHAR* hash,
-    PULONG hash_ln
-)
-{
-    ULONG required_size = 0;
-    NTSTATUS status = STATUS_SUCCESS;
-    ULONG padding;
-    PVOID pad_info_ptr = NULL;
-
-    if ( padding_type == 1 )
-    {
-        padding = BCRYPT_PAD_PKCS1; // random number padding
-        BCRYPT_PKCS1_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info_ptr = &pad_info;
-    }
-    else if ( padding_type == 2 )
-    {
-        padding = BCRYPT_PAD_PSS; // fill and pass pad_info
-        BCRYPT_PSS_PADDING_INFO pad_info;
-        ZeroMemory(&pad_info, sizeof(pad_info));
-        pad_info.pszAlgId = BCRYPT_SHA512_ALGORITHM;
-        pad_info.cbSalt = 0x12345678;
-        pad_info_ptr = NULL;
-    }
-    else 
-    {
-        padding = 0;
-        pad_info_ptr = NULL;
-    }
-
-    status = BCryptDecrypt(
-        ctxt->pub_key,
-        signature,
-        signature_ln,
-        pad_info_ptr,
-        NULL,
-        0,
-        NULL,
-        0,
-        &required_size,
-        padding
-    );
-    if ( !NT_SUCCESS(status) )
-    {
-        EPrint(status, "BCryptDecrypt get size\n");
-        goto clean;
-    }
-    DPrint("required_size: 0x%x\n", required_size);
-    
-    
-    if ( *hash == NULL )
-    {
-        *hash = (PUCHAR)malloc(required_size);
-        if ( *hash == NULL )
-        {
-            EPrint(GetLastError(), "malloc out buffer\n");
-            status = STATUS_NO_MEMORY;
-            goto clean;
-        }
-    }
-    else
-    {
-        if ( required_size > *hash_ln )
-        {
-            status = STATUS_NO_MEMORY;
-            EPrint(status, "Provided plain buffer[0x%x] is too small! 0x%x needed.\n", *hash_ln, required_size);
-            goto clean;
-        }
-    }
-    *hash_ln = required_size;
-
-    if ( signature != *hash )
-        RtlZeroMemory(*hash, *hash_ln);
-
-    status = BCryptDecrypt(
-        ctxt->pub_key,
-        signature,
-        signature_ln,
-        pad_info_ptr,
-        NULL,
-        0,
-        *hash,
-        *hash_ln,
-        &required_size,
-        padding
-    );
-    if ( !NT_SUCCESS(status) )
-    {
-        EPrint(status, "BCryptDecrypt\n");
-        goto clean;
-    }
-    
-clean:
-    ;
     return (int)status;
 }
 
@@ -1868,7 +1626,8 @@ NTSTATUS loadFileBytes(
     fpl = GetFullPathNameA(path, MAX_PATH, full_path, NULL);
     if (!fpl)
     {
-        EPrint(GetLastError(), "Get full path failed for \"%s\".", path);
+        status = GetLastError();
+        EPrintP("Get full path failed for \"%s\"! (0x%x)\n", path, status);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
@@ -1877,7 +1636,7 @@ NTSTATUS loadFileBytes(
     status = StringCchPrintfW(wpath, MAX_PATH, L"\\??\\%hs", full_path);
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "RtlStringCchPrintfW\n");
+        EPrintP("RtlStringCchPrintfW failed! (0x%x)\n", status);
         goto clean;
     }
     wpath[MAX_PATH - 1] = 0;
@@ -1907,14 +1666,15 @@ NTSTATUS loadFileBytes(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "NtCreateFile\n");
+        EPrintP("NtCreateFile failed! (0x%x)\n", status);
         goto clean;
     }
 
     fpl = GetFileSizeEx(file, &file_size);
     if (!fpl)
     {
-        EPrint(GetLastError(), "GetFileSizeEx \"%s\".", path);
+        status = GetLastError();
+        EPrintP("GetFileSizeEx \"%s\" failed! (0x%x.", path, status);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
@@ -1922,7 +1682,8 @@ NTSTATUS loadFileBytes(
     *buffer = (UCHAR*)malloc((SIZE_T)file_size.QuadPart);
     if ( *buffer == NULL )
     {
-        EPrint(GetLastError(), "malloc key_buffer\n");
+        status = GetLastError();
+        EPrintP("malloc key_buffer failed! (0x%x)\n", status);
         status = STATUS_NO_MEMORY;
         goto clean;
     }
@@ -1943,14 +1704,14 @@ NTSTATUS loadFileBytes(
     );
     if ( !NT_SUCCESS(status) || !NT_SUCCESS(iosb.Status) )
     {
-        EPrint(status, "NtReadFile\n");
+        EPrintP("NtReadFile failed! (0x%x)\n", status);
         goto clean;
     }
     if ( (ULONG)iosb.Information > *buffer_ln )
     {
         status = STATUS_UNSUCCESSFUL;
         *buffer_ln = 0;
-        EPrint(status, "key_buffer to small. 0x%x needed.\n", (ULONG)iosb.Information);
+        EPrintP("key_buffer to small. 0x%x needed! (0x%x)\n", (ULONG)iosb.Information, status);
         goto clean;
     }
     *buffer_ln = (ULONG)iosb.Information;
@@ -1988,7 +1749,8 @@ NTSTATUS writeFileBytes(
     fpl = GetFullPathNameA(path, MAX_PATH, full_path, NULL);
     if (!fpl)
     {
-        EPrint(GetLastError(), "Get full path failed for \"%s\".", path);
+        status = GetLastError();
+        EPrintP("Get full path failed for \"%s\"! (0x%x)", path, status);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
@@ -1997,7 +1759,7 @@ NTSTATUS writeFileBytes(
     status = StringCchPrintfW(wpath, MAX_PATH, L"\\??\\%hs", full_path);
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "RtlStringCchPrintfW\n");
+        EPrintP("RtlStringCchPrintfW failed! (0x%x)\n", status);
         goto clean;
     }
     wpath[MAX_PATH - 1] = 0;
@@ -2027,7 +1789,7 @@ NTSTATUS writeFileBytes(
     );
     if ( !NT_SUCCESS(status) )
     {
-        EPrint(status, "NtCreateFile\n");
+        EPrintP("NtCreateFile failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -2045,7 +1807,7 @@ NTSTATUS writeFileBytes(
     );
     if ( !NT_SUCCESS(status) || !NT_SUCCESS(iosb.Status) )
     {
-        EPrint(status, "NtReadFile\n");
+        EPrintP("NtReadFile failed! (0x%x)\n", status);
         goto clean;
     }
 

@@ -83,28 +83,12 @@ int RSA_signHash(
     PULONG signature_ln
 );
 
-int RSA_signHash2(
-    PRSA_CTXT ctxt,
-    PUCHAR plain,
-    ULONG plain_ln,
-    PUCHAR* encrypted,
-    PULONG encrypted_ln
-);
-
 int RSA_verifyHash(
     PRSA_CTXT ctxt,
     PUCHAR hash,
     ULONG hash_ln,
     PUCHAR* signature,
     ULONG* signature_ln
-);
-
-int RSA_verifyHash2(
-    PRSA_CTXT ctxt,
-    PUCHAR signature,
-    ULONG signature_ln,
-    PUCHAR* hash,
-    PULONG hash_ln
 );
 
 int RSA_clean(
