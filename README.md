@@ -129,9 +129,11 @@ The upper limit comes due to the MS BCrypt limit, that expects a ULONG (32-bit u
 
 ### Encryption
 Encryption is done by RSA (PKCS1 padding) and AES256 in CBC mode.
-The AES secret and IV is first sent encrypted with the public RSA key and then the file header and data is sent encrypted with the AES key.
-The client has to pass a public RSA (Windows: .der, Linux: .pem) key to which the server owns the corresponding private (Windows: .der, Linux: .pem) key.
-The communication partners have to know each other beforehand and obviously both of them have to provide a key or none of them.
+An AES secret and IV as randomly created for each file.
+The AES secret and IV is encrypted with the public RSA key and sent to the server.
+Then the file header and data is sent over encrypted with the AES key.
+The client has to use a public RSA (Windows: .der, Linux: .pem) key to which the server owns the corresponding private (Windows: .der, Linux: .pem) key.
+The communication partners have to know each other's keys beforehand and obviously both of them have to provide a key or none of them.
 There is no key exchange happening like e.g. in TLS.  
 
 Currently, the private key has to be stored unencrypted as a file on the server system.  
@@ -142,7 +144,7 @@ On the other hand, there is only one IV created but used for sending the file he
 To ensure security, an AES block sized random buffer is added to the file header and the answers so that the IV is not consumed before sending the data.  
 This may be changed, if a better solution is found.
 
-RSA padding will be changed to AOEP in the future, when it's implemented correctly working on Windows.  
+RSA padding will be changed to AOEP in the future. 
 AES block cipher mode may be changed too to GCM.
 
 Files are sent in chunks of 0x100000 (or whatever the `-s` option is set to) byte blocks. 
@@ -158,6 +160,7 @@ Integrity checks for the headers and maybe the answers as well will be added in 
 ```bash
 $ openssl ...
 ```
+There is a [createOpenSslCert.sh](scripts/createOpenSslCert.sh) for Linux and also for Windows: [createOpenSslCert.bat](https://github.com/fkie-cad/windowsScripts/blob/master/crypto/createOpensslCert.bat)
 
 
 ### Questions, bugs, problems, issues

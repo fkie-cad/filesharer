@@ -18,7 +18,8 @@ set /a ep=1
 
 set /a verbose=0
 
-set buildTools="C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools"
+set /a bt_year=2022
+set buildTools="C:\Program Files (x86)\Microsoft Visual Studio\%bt_year%\BuildTools"
 set pts=v143
 
 
@@ -150,7 +151,7 @@ GOTO :ParseParams
     
 
     :: set vcvars if neccessary
-    :: pseudo nop command to prevent if else bug in :build
+    :: "call" is used as a pseudo nop command to prevent if else bug in :build
     set vcvars=call
     if [%VisualStudioVersion%] EQU [] (
         if not exist %buildTools% (

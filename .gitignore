@@ -19,7 +19,4 @@ copyToBin.bat
 updateBin.bat
 TODO.txt
 
-tests/.ssh/
-tests/.ssl/
-tests/stuff/
-tests/testDirectory/
+tests
