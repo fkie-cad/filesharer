@@ -13,6 +13,11 @@
 
 #include <stdint.h>
 
+#ifdef _WIN32
+#define RSA_PADDING BCRYPT_PAD_OAEP
+#elif defined(_LINUX)
+#define RSA_PADDING RSA_PKCS1_OAEP_PADDING
+#endif
 
 
 

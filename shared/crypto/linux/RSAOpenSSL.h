@@ -20,9 +20,13 @@ typedef enum _KEY_TYPE {KEY_TYPE_NONE, KEY_TYPE_DER, KEY_TYPE_PEM, KEY_TYPE_PUB,
 /**
  * Open RSA provider.
  * Remember to close.
+ * 
+ * @param ctxt PRSA_CTXT The context to be filled
+ * @param padding uint32_t Padding scheme: RSA_PKCS1_PADDING, RSA_PKCS1_OAEP_PADDING (default)
  */
 int RSA_init(
-    PRSA_CTXT ctxt
+    PRSA_CTXT ctxt,
+    uint32_t padding
 );
 
 /**

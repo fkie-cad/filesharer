@@ -16,7 +16,8 @@
 #define KEY_TYPE "RSA"
 
 int RSA_init(
-    PRSA_CTXT ctxt
+    PRSA_CTXT ctxt,
+    uint32_t padding
 )
 {
     int status = 0;
@@ -30,7 +31,10 @@ int RSA_init(
 //        return -1;
 //    }
 
-    ctxt->padding = RSA_PKCS1_PADDING;
+    if ( padding != RSA_PKCS1_PADDING )
+        padding = RSA_PKCS1_OAEP_PADDING;
+    ctxt->padding = padding;
+//    ctxt->padding = RSA_PKCS1_PADDING;
 //    ctxt->padding = RSA_PKCS1_OAEP_PADDING;
 
     return status;

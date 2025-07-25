@@ -615,6 +615,8 @@ int loadBlockIntoBuffer(FILE* file, size_t offset, uint8_t* buffer, uint32_t rea
     fseek(file, offset, SEEK_SET);
     bytes_read = fread(buffer, 1, read_size, file);
     errsv = errno;
+    DPrint("bytes_read: 0x%x\n", bytes_read);
+    DPrint("read_size: 0x%x\n", read_size);
     if ( bytes_read != read_size || errsv != 0 )
     {
         EPrint(errsv, "Read file bytes failed.\n");

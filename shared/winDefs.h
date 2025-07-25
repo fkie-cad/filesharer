@@ -13,15 +13,17 @@
 // errors
 #define STATUS_SUCCESS                       ((NTSTATUS)0x00000000L)
 #define STATUS_UNSUCCESSFUL                  ((NTSTATUS)0xC0000001L)
-#define STATUS_NO_SUCH_FILE                  ((NTSTATUS)0xC000000FL)   
-#define STATUS_INVALID_DEVICE_REQUEST        ((NTSTATUS)0xC0000010L)   
-#define STATUS_ACCESS_DENIED                 ((NTSTATUS)0xC0000022L)   
-#define STATUS_OBJECT_NAME_INVALID           ((NTSTATUS)0xC0000033L)   
-#define STATUS_OBJECT_NAME_NOT_FOUND         ((NTSTATUS)0xC0000034L)   
-#define STATUS_OBJECT_PATH_NOT_FOUND         ((NTSTATUS)0xC000003AL)   
-#define STATUS_ILLEGAL_FUNCTION              ((NTSTATUS)0xC00000AFL)   
-#define STATUS_NOT_SUPPORTED                 ((NTSTATUS)0xC00000BBL)   
-#define STATUS_DATATYPE_MISALIGNMENT_ERROR   ((NTSTATUS)0xC00002C5L)   
+#define STATUS_NO_SUCH_FILE                  ((NTSTATUS)0xC000000FL)
+#define STATUS_INVALID_DEVICE_REQUEST        ((NTSTATUS)0xC0000010L)
+#define STATUS_ACCESS_DENIED                 ((NTSTATUS)0xC0000022L)
+#define STATUS_BUFFER_TOO_SMALL              ((NTSTATUS)0xC0000023L)
+#define STATUS_OBJECT_NAME_INVALID           ((NTSTATUS)0xC0000033L)
+#define STATUS_OBJECT_NAME_NOT_FOUND         ((NTSTATUS)0xC0000034L)
+#define STATUS_OBJECT_PATH_NOT_FOUND         ((NTSTATUS)0xC000003AL)
+#define STATUS_INSUFFICIENT_RESOURCES        ((NTSTATUS)0xC000009AL)
+#define STATUS_ILLEGAL_FUNCTION              ((NTSTATUS)0xC00000AFL)
+#define STATUS_NOT_SUPPORTED                 ((NTSTATUS)0xC00000BBL)
+#define STATUS_DATATYPE_MISALIGNMENT_ERROR   ((NTSTATUS)0xC00002C5L)
 
 //NTSTATUS RtlStringCchPrintfW(
 //  PWCHAR  pszDest,
@@ -83,5 +85,26 @@ NTSTATUS NtWriteFile(
 //
 //    return "unknown";
 //}
+
+typedef struct _FILE_STANDARD_INFORMATION {
+    LARGE_INTEGER AllocationSize;
+    LARGE_INTEGER EndOfFile;
+    ULONG NumberOfLinks;
+    BOOLEAN DeletePending;
+    BOOLEAN Directory;
+} FILE_STANDARD_INFORMATION, *PFILE_STANDARD_INFORMATION;
+
+#define FileStandardInformation (5)
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+ZwQueryInformationFile(
+    _In_ HANDLE FileHandle,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _Out_writes_bytes_(Length) PVOID FileInformation,
+    _In_ ULONG Length,
+    _In_ FILE_INFORMATION_CLASS FileInformationClass
+    );
 
 #endif

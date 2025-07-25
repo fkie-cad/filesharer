@@ -84,7 +84,7 @@
       <!-- /sdl additional security checks -->
       <!--<FunctionLevelLinking>true</FunctionLevelLinking>-->
       <!--<IntrinsicFunctions>true</IntrinsicFunctions>-->
-      <PreprocessorDefinitions>ERROR_PRINT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ERROR_PRINT;RING3;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!--<LanguageStandard>c99</LanguageStandard>-->
       <AdditionalOptions>/GS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
