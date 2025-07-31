@@ -188,8 +188,11 @@ int __cdecl main(int argc, char* argv[])
         EPrint(s, "initConnection failed.\n");
         goto clean;
     }
-    
 
+    if ( key_path != NULL )
+        printf("mode: encrypted\n");
+    else
+        printf("mode: not encrypted\n");
 
     if ( flags & FLAG_SERVER )
     {

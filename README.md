@@ -15,8 +15,8 @@ Compiles and runs under
 
 
 ## Version ##
-1.4.3  
-Last changed: 11.01.2024
+1.4.4  
+Last changed: 31.07.2025
 
 
 ## Requirements
@@ -128,7 +128,7 @@ The upper limit comes due to the MS BCrypt limit, that expects a ULONG (32-bit u
 
 
 ### Encryption
-Encryption is done by RSA (PKCS1 padding) and AES256 in CBC mode.
+Encryption is done by RSA (OAEP padding) and AES256 in CBC mode.
 An AES secret and IV as randomly created for each file.
 The AES secret and IV is encrypted with the public RSA key and sent to the server.
 Then the file header and data is sent over encrypted with the AES key.
@@ -144,16 +144,13 @@ On the other hand, there is only one IV created but used for sending the file he
 To ensure security, an AES block sized random buffer is added to the file header and the answers so that the IV is not consumed before sending the data.  
 This may be changed, if a better solution is found.
 
-RSA padding will be changed to AOEP in the future. 
-AES block cipher mode may be changed too to GCM.
-
 Files are sent in chunks of 0x100000 (or whatever the `-s` option is set to) byte blocks. 
 For each block, the IV is rotated, so it should be different for each block.
 
 
 ### Integrity
 The file data itself is checked by its sha256 hash. 
-Integrity checks for the headers and maybe the answers as well will be added in future versions when RSA signing is implemented correctly working on Windows.
+Integrity checks and server authentication for the headers and maybe the answers as well will be added in future versions when RSA signing is got to work correctly on Windows.
 
 
 ### Create keys

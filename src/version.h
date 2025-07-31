@@ -1,7 +1,7 @@
 #ifndef SHARED_VERSION_H
 #define SHARED_VERSION_H
 
-#define APP_VERSION "1.4.3"
-#define APP_LAST_CHANGED "11.01.2024"
+#define APP_VERSION "1.4.4"
+#define APP_LAST_CHANGED "31.07.2025"
 
 #endif

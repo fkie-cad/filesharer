@@ -142,6 +142,7 @@ int runClient(
     //    printf("Block size too big! Setting to 0x%x!\n", enc_block_buffer_size);
     //}
 
+    printf("\n");
 
 
     //
