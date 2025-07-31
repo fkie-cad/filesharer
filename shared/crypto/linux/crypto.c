@@ -17,7 +17,7 @@ int c_init(
 {
     int s = 0;
 
-    s = RSA_init(&rsa_ctxt);
+    s = RSA_init(&rsa_ctxt, RSA_PKCS1_OAEP_PADDING);
     if ( s != 0 )
     {
 #ifdef ERROR_PRINT

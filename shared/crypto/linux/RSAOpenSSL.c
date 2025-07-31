@@ -8,7 +8,6 @@
 #include <openssl/err.h>
 #include <openssl/decoder.h>
 //#include <openssl/encoder.h>
-#include <openssl/rsa.h>
 
 #include "../../print.h"
 
