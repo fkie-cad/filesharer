@@ -183,6 +183,11 @@ int runServer(
     }
     DPrint("socket bound\n");
 
+#ifdef WIN32
+    printLocalAddresses();
+    printf("\n");
+#endif
+
     errno = 0;
     s = listen(sock, 1);
     if ( s == SOCKET_ERROR )

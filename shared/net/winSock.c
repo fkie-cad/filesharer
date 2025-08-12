@@ -68,3 +68,53 @@ void checkReceiveError(int le)
     else
         printf("ERROR (0x%lx): recv failed.\n", le);
 }
+
+int printLocalAddresses()
+{
+    int s = 0;
+    char ac[80] = {0};
+
+    if ( gethostname(ac, sizeof(ac)) == SOCKET_ERROR )
+    {
+        s = WSAGetLastError();
+        printf("[e] Error when getting local host name! (0x%x)\n", s);
+        return WSAGetLastError();
+    }
+    printf("Host name is %s\n",  ac);
+
+    struct hostent *phe = gethostbyname(ac);
+    if ( phe == 0 )
+    {
+        s = WSAGetLastError();
+        printf("[e] Bad host lookup! (0x%x)\n", s);
+        return s;
+    }
+    
+#ifdef DEBUG_PRINT
+    printf("h_name: %s\n", phe->h_name);
+#endif
+    if ( phe->h_aliases && phe->h_aliases[0] != 0)
+    {
+        printf("Aliases:\n");
+        for ( size_t i = 0; phe->h_aliases[i] != 0; ++i )
+        {
+            printf("[%zu]: %p\n", i, phe->h_aliases[i]);
+        }
+    }
+#ifdef DEBUG_PRINT
+    printf("h_addrtype: 0x%x\n", phe->h_addrtype);
+    printf("h_length: 0x%x\n", phe->h_length);
+#endif
+    printf("Address list:\n");
+    char ip_str[0x40];
+    for ( unsigned int i = 0; phe->h_addr_list[i] != 0; ++i )
+    {
+        struct in_addr addr;
+        memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
+        memset(ip_str, 0, 0x40);
+        inet_ntop(phe->h_addrtype, &addr, ip_str, 0x40);
+        printf("[%u] %s\n", i, ip_str);
+    }
+    
+    return 0;
+}

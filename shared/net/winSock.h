@@ -53,4 +53,6 @@ void checkReceiveError(
     int le
 );
 
+int printLocalAddresses();
+
 #endif
