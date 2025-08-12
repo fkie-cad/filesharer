@@ -44,4 +44,6 @@ void printSockAddr(
     int addr_ln
 );
 
+int printLocalAddresses();
+
 #endif
