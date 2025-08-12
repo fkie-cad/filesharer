@@ -20,10 +20,14 @@
 #endif
 
 
+#define GetPssSaltLength(_hbytes_, _kbits_) min((_hbytes_), (((_kbits_)/8)-(_hbytes_)-2))
+
+
 typedef struct _RSA_CTXT {
     BCRYPT_ALG_HANDLE alg;
     BCRYPT_KEY_HANDLE pub_key;
     BCRYPT_KEY_HANDLE priv_key;
+    UINT32 keyStrength; // in bits
     ULONG padding;
     PVOID padding_info;
 } RSA_CTXT, * PRSA_CTXT;
@@ -46,7 +50,7 @@ typedef enum _KEY_TYPE {
  * - set the padding 
  * 
  * @param ctxt PRSA_CTXT Context object to be filled
- * @param padding ULONG A padding scheme: BCRYPT_PAD_PKCS1 or BCRYPT_PAD_OAEP (default). BCRYPT_PAD_OAEP introduces an overhead of 2+2*hlen, i.e. reduces the possible message size. BCRYPT_PAD_PKCS1 just pads a possible rest with random numbers, i.e. no overhead.
+ * @param padding ULONG A padding scheme: BCRYPT_PAD_PKCS1 or BCRYPT_PAD_OAEP (default). BCRYPT_PAD_OAEP introduces an overhead of 2+2*hlen, i.e. reduces the possible message size. BCRYPT_PAD_PKCS1 has an overhead of +11.
  */
 NTSTATUS RSA_init(
     _Out_ PRSA_CTXT ctxt,
@@ -108,7 +112,7 @@ NTSTATUS RSA_importPrivKeyFromFile(
  * Export RSA private key to .der file.
  * !! Not implemented yet !!
  * 
- * @param key BCRYPT_KEY_HANDLE The pub key.
+ * @param privKey BCRYPT_KEY_HANDLE The private key.
  * @param path CHAR* Path to the exported key file.
  */
 NTSTATUS RSA_exportPrivKeyToDER(
@@ -131,7 +135,7 @@ NTSTATUS RSA_exportPrivKeyToBLOB(
 /**
  * Encrypt a buffer with RSA using the public key.
  * 
- * @param pubKey BCRYPT_KEY_HANDLE The public key used for encryption.
+ * @param ctxt PRSA_CTXT The initialized context with a public key used for encryption.
  * @param plain PUCHAR Plain input buffer.
  * @param plain_ln ULONG Plain input buffer size in bytes.
  * @param encrypted PUCHAR Output buffer filled with the encrypted bytes. If NULL, it will be allocated internally and has to be freed when not needed anymore.
@@ -148,7 +152,7 @@ NTSTATUS RSA_encrypt(
 /**
  * Decrypt an RSA encrypted buffer using the private key.
  * 
- * @param privKey BCRYPT_KEY_HANDLE The private key used for decryption.
+ * @param ctxt PRSA_CTXT The initialized context with a private key used for decryption.
  * @param encrypted PUCHAR Encrypted input buffer.
  * @param encrypted_ln ULONG Encrypted input buffer size in bytes.
  * @param plain PUCHAR Output buffer filled with the decrypted bytes. If NULL, it will be allocated internally and has to be freed when not needed anymore.
@@ -165,7 +169,7 @@ NTSTATUS RSA_decrypt(
 /**
  * Sign a hash with RSA using the private key.
  * 
- * @param privKey BCRYPT_KEY_HANDLE The private key used for the signature.
+ * @param ctxt PRSA_CTXT The initialized context with a private key used for signing.
  * @param algId LPCWSTR Hash algorithm used for padding. Has to match the input hash algorithm. E.g. BCRYPT_SHA256_ALGORITHM
  * @param hash PUCHAR Hash value input buffer.
  * @param hash_ln ULONG Hash value input buffer size in bytes.
@@ -173,7 +177,7 @@ NTSTATUS RSA_decrypt(
  * @param signature_ln PULONG Size of the signature bytes output buffer in bytes. If the buffer is preallocated, it should tell its size.
  */
 NTSTATUS RSA_signHash(
-    _In_ BCRYPT_KEY_HANDLE privKey,
+    _In_ PRSA_CTXT ctxt,
     _In_ LPCWSTR algId,
     _In_ PUCHAR hash,
     _In_ ULONG hash_ln,
@@ -184,7 +188,7 @@ NTSTATUS RSA_signHash(
 /**
  * Verify a signature with RSA using the public key.
  * 
- * @param privKey BCRYPT_KEY_HANDLE The public key used for the verification.
+ * @param ctxt PRSA_CTXT The initialized context with a public key used for verifying.
  * @param algId LPCWSTR Hash algorithm used for padding. Has to match the input hash algorithm. E.g. BCRYPT_SHA256_ALGORITHM
  * @param hash PUCHAR Expected hash value to be verified.
  * @param hash_ln ULONG Expected hash value buffer size in bytes.
@@ -192,7 +196,7 @@ NTSTATUS RSA_signHash(
  * @param signature_ln ULONG Size of the signature to verify in bytes.
  */
 NTSTATUS RSA_verifyHash(
-    _In_ BCRYPT_KEY_HANDLE pubKey,
+    _In_ PRSA_CTXT ctxt,
     _In_ LPCWSTR algId,
     _In_ PUCHAR hash,
     _In_ ULONG hash_ln,
@@ -214,6 +218,5 @@ NTSTATUS RSA_verifyHash(
 NTSTATUS RSA_clean(
     _Inout_ PRSA_CTXT ctxt
 );
-
 
 #endif

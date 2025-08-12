@@ -163,7 +163,7 @@ NTSTATUS RSA_init(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptOpenAlgorithmProvider failed! (0x%x)\n", status);
+        EPrintP("BCryptOpenAlgorithmProvider failed! (0x%x)\n", status);
         return status;
     }
 
@@ -331,7 +331,7 @@ NTSTATUS RSA_pub_derBlobToWcBlob(
     {
         //status = STATUS_UNSUCCESSFUL;
         status = GetLastError();
-        //EPrint("CryptDecodeObjectEx failed 1! (0x%x)\n", status);
+        EPrintP("CryptDecodeObjectEx failed 1! (0x%x)\n", status);
         goto clean;
     }
     
@@ -366,7 +366,7 @@ NTSTATUS RSA_pub_derBlobToWcBlob(
     if ( !b )
     {
         status = GetLastError();
-        //EPrint("CryptDecodeObjectEx failed 2! (0x%x)\n", status);
+        EPrintP("CryptDecodeObjectEx failed 2! (0x%x)\n", status);
         goto clean;
     }
 #ifdef DEBUG_PRINT
@@ -378,7 +378,7 @@ NTSTATUS RSA_pub_derBlobToWcBlob(
     if ( wc_blob_pk->magic != BCRYPT_RSAPUBLIC_MAGIC )
     {
         status = STATUS_UNSUCCESSFUL;
-        //EPrint("Not a RSA public key! (0x%x)\n", status);
+        EPrintP("Not a RSA public key! (0x%x)\n", status);
         goto clean;
     }
 
@@ -435,7 +435,7 @@ NTSTATUS RSA_pub_wcBlobToBcBlob(
     if ( blobBuffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("LocalAlloc failed! (0x%x)\n", status);
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(blobBuffer, blob_ln);
@@ -520,7 +520,7 @@ NTSTATUS RSA_priv_derBlobToWcBlob(
     {
         status = GetLastError();
         //status = STATUS_UNSUCCESSFUL;
-        //EPrint("CryptDecodeObjectEx failed 1! (0x%x)\n", status);
+        EPrintP("CryptDecodeObjectEx failed 1! (0x%x)\n", status);
         goto clean;
     }
 #ifdef DEBUG_PRINT
@@ -534,7 +534,7 @@ NTSTATUS RSA_priv_derBlobToWcBlob(
     if ( wc_blob_pk->magic != BCRYPT_RSAPRIVATE_MAGIC )
     {
         status = STATUS_UNSUCCESSFUL;
-        //EPrint("Not a RSA private key! (0x%x)\n", status);
+        EPrintP("Not a RSA private key! (0x%x)\n", status);
         goto clean;
     }
 
@@ -604,7 +604,7 @@ NTSTATUS RSA_priv_wcBlobToBcBlob(
     if ( blobBuffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("LocalAlloc failed! (0x%x)\n", status);
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(blobBuffer, blob_ln);
@@ -698,7 +698,7 @@ NTSTATUS RSA_importPubKeyFromFile(
     if ( type == KEY_TYPE_NONE )
     {
         status = STATUS_INVALID_PARAMETER;
-        //EPrint("Unknown key type! (0x%x)\n", status);
+        EPrintP("Unknown key type! (0x%x)\n", status);
         return status;
     }
 
@@ -723,7 +723,7 @@ NTSTATUS RSA_importPubKeyFromFile(
         status = RSA_pub_derBlobToWcBlob(key_file_bytes, key_file_bytes_ln, &wc_blob, &wc_blob_ln);
         if ( status != 0 )
         {
-            //EPrint("RSA_pub_derBlobToWcBlob failed! (0x%x)\n", status);
+            EPrintP("RSA_pub_derBlobToWcBlob failed! (0x%x)\n", status);
             goto clean;
         }
 #ifdef DEBUG_PRINT
@@ -737,7 +737,7 @@ NTSTATUS RSA_importPubKeyFromFile(
         status = RSA_pub_wcBlobToBcBlob(wc_blob_pk, &blob, &blob_ln);
         if ( status != 0 )
         {
-            //EPrint("RSA_pub_wcBlobToBcBlob failed! (0x%x)\n", status);
+            EPrintP("RSA_pub_wcBlobToBcBlob failed! (0x%x)\n", status);
             goto clean;
         }
     }
@@ -754,7 +754,7 @@ NTSTATUS RSA_importPubKeyFromFile(
         if ( blob->Magic != BCRYPT_RSAPUBLIC_MAGIC )
         {
             status = STATUS_UNSUCCESSFUL;
-            //EPrint("Not an RSA public key. (0x%x)\n", status);
+            EPrintP("Not an RSA public key. (0x%x)\n", status);
             goto clean;
         }
 
@@ -765,7 +765,7 @@ NTSTATUS RSA_importPubKeyFromFile(
     else
     {
         status = STATUS_UNSUCCESSFUL;
-        //EPrint("Unknown key type! (0x%x)\n", status);
+        EPrintP("Unknown key type! (0x%x)\n", status);
         goto clean;
     }
 
@@ -780,10 +780,27 @@ NTSTATUS RSA_importPubKeyFromFile(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptImportKeyPair failed! (0x%x)\n", status);
+        EPrintP("BCryptImportKeyPair failed! (0x%x)\n", status);
         goto clean;
     }
     DPrint("key: %p\n", ctxt->pub_key);
+
+    UINT32 dataSize = sizeof(UINT32);
+    UINT32 keyStrength = 0;
+    status = BCryptGetProperty(
+        ctxt->pub_key,
+        BCRYPT_KEY_STRENGTH,
+        (PUINT8) &keyStrength,
+        dataSize,
+        &dataSize,
+        0);
+    if ( status != 0 )
+    {
+        EPrintP("BCryptGetProperty %ws failed! (0x%x)\n", BCRYPT_KEY_STRENGTH, status);
+        goto clean;
+    }
+    ctxt->keyStrength = keyStrength;
+    DPrint("keyStrength: 0x%x\n", ctxt->keyStrength);
 
 clean:
     if ( wc_blob != NULL )
@@ -812,7 +829,7 @@ NTSTATUS RSA_importPubKeyFromFile(
     if ( type != KEY_TYPE_BCBLOB )
     {
         status = STATUS_INVALID_PARAMETER;
-        //EPrint("Unsupported key type! (0x%x)\n", status);
+        EPrintP("Unsupported key type! (0x%x)\n", status);
         return status;
     }
 
@@ -828,7 +845,7 @@ NTSTATUS RSA_importPubKeyFromFile(
     if ( blob->Magic != BCRYPT_RSAPUBLIC_MAGIC )
     {
         status = STATUS_UNSUCCESSFUL;
-        //EPrint("Not an RSA public key. (0x%x)\n", status);
+        EPrintP("Not an RSA public key. (0x%x)\n", status);
         goto clean;
     }
 
@@ -843,9 +860,26 @@ NTSTATUS RSA_importPubKeyFromFile(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptImportKeyPair failed! (0x%x)\n", status);
+        EPrintP("BCryptImportKeyPair failed! (0x%x)\n", status);
         goto clean;
     }
+
+    UINT32 dataSize = sizeof(UINT32);
+    UINT32 keyStrength = 0;
+    status = BCryptGetProperty(
+        ctxt->pub_key,
+        BCRYPT_KEY_STRENGTH,
+        (PUINT8) &keyStrength,
+        dataSize,
+        &dataSize,
+        0);
+    if ( status != 0 )
+    {
+        EPrintP("BCryptGetProperty %ws failed! (0x%x)\n", BCRYPT_KEY_STRENGTH, status);
+        goto clean;
+    }
+    ctxt->keyStrength = keyStrength;
+    DPrint("keyStrength: 0x%x\n", ctxt->keyStrength);
 
 clean:
     if ( key_file_bytes )
@@ -891,7 +925,7 @@ NTSTATUS RSA_exportPubKeyToDER(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -900,7 +934,7 @@ NTSTATUS RSA_exportPubKeyToDER(
     if ( buffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("LocalAlloc failed! (0x%x)\n", status);
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
@@ -918,7 +952,7 @@ NTSTATUS RSA_exportPubKeyToDER(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -945,7 +979,7 @@ NTSTATUS RSA_exportPubKeyToDER(
     if ( wc_buffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("LocalAlloc failed! (0x%x)\n", status);
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(wc_buffer, wc_blob_ln);
@@ -984,7 +1018,7 @@ NTSTATUS RSA_exportPubKeyToDER(
     if ( !b )
     {
         status = GetLastError();
-        //EPrint("CryptEncodeObjectEx failed 1! (0x%x)\n", status);
+        EPrintP("CryptEncodeObjectEx failed 1! (0x%x)\n", status);
         status = STATUS_UNSUCCESSFUL;
         goto clean;
     }
@@ -1043,7 +1077,7 @@ NTSTATUS RSA_exportPubKeyToDER(
     if ( !b )
     {
         status = GetLastError();
-        //EPrint("CryptEncodeObjectEx failed 3! (0x%x)\n", status);
+        EPrintP("CryptEncodeObjectEx failed 3! (0x%x)\n", status);
         status = STATUS_UNSUCCESSFUL;
         goto clean;
     }
@@ -1056,7 +1090,7 @@ NTSTATUS RSA_exportPubKeyToDER(
     status = writeFileBytes(path, der_buffer, der_buffer_ln);
     if ( status != 0 )
     {
-        //EPrint("writeFileBytes failed! (0x%x)\n", status);
+        EPrintP("writeFileBytes failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -1096,7 +1130,7 @@ NTSTATUS RSA_exportPubKeyToBLOB(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1105,7 +1139,7 @@ NTSTATUS RSA_exportPubKeyToBLOB(
     if ( buffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("LocalAlloc failed! (0x%x)\n", status);
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
@@ -1123,7 +1157,7 @@ NTSTATUS RSA_exportPubKeyToBLOB(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1136,7 +1170,7 @@ NTSTATUS RSA_exportPubKeyToBLOB(
     status = writeFileBytes(path, (UCHAR*)blob, blob_ln);
     if ( status != 0 )
     {
-        //EPrint("writeFileBytes failed! (0x%x)\n", status);
+        EPrintP("writeFileBytes failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -1173,7 +1207,7 @@ NTSTATUS RSA_importPrivKeyFromFile(
     if ( type == KEY_TYPE_NONE )
     {
         status = STATUS_INVALID_PARAMETER;
-        //EPrint("Unknown key type! (0x%x)\n", status);
+        EPrintP("Unknown key type! (0x%x)\n", status);
         return status;
     }
 
@@ -1201,7 +1235,7 @@ NTSTATUS RSA_importPrivKeyFromFile(
         RSA_priv_derBlobToWcBlob(key_file_bytes, key_file_bytes_ln, &wc_blob, &wc_blob_ln);
         if ( status != 0 )
         {
-            //EPrint("RSA_priv_derBlobToWcBlob failed! (0x%x)\n", status);
+            EPrintP("RSA_priv_derBlobToWcBlob failed! (0x%x)\n", status);
             goto clean;
         }
         wc_blob_pk = (RSAPUBKEY*)(wc_blob + 1);
@@ -1209,7 +1243,7 @@ NTSTATUS RSA_importPrivKeyFromFile(
         status = RSA_priv_wcBlobToBcBlob(wc_blob_pk, &blob, &blob_ln);
         if ( status != 0 )
         {
-            //EPrint("RSA_priv_wcBlobToBcBlob failed! (0x%x)\n", status);
+            EPrintP("RSA_priv_wcBlobToBcBlob failed! (0x%x)\n", status);
             goto clean;
         }
     }
@@ -1221,14 +1255,14 @@ NTSTATUS RSA_importPrivKeyFromFile(
         if ( blob->Magic != BCRYPT_RSAPRIVATE_MAGIC )
         {
             status = STATUS_UNSUCCESSFUL;
-            //EPrint("Not an RSA public key. (0x%x)\n", status);
+            EPrintP("Not an RSA public key. (0x%x)\n", status);
             goto clean;
         }
     }
     else
     {
         status = STATUS_UNSUCCESSFUL;
-        //EPrint("Unknown key type! (0x%x)\n", status);
+        EPrintP("Unknown key type! (0x%x)\n", status);
         goto clean;
     }
 
@@ -1243,10 +1277,27 @@ NTSTATUS RSA_importPrivKeyFromFile(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptImportKeyPair failed! (0x%x)\n", status);
+        EPrintP("BCryptImportKeyPair failed! (0x%x)\n", status);
         goto clean;
     }
     DPrint("key: %p\n", ctxt->priv_key);
+
+    UINT32 dataSize = sizeof(UINT32);
+    UINT32 keyStrength = 0;
+    status = BCryptGetProperty(
+        ctxt->priv_key,
+        BCRYPT_KEY_STRENGTH,
+        (PUINT8) &keyStrength,
+        dataSize,
+        &dataSize,
+        0);
+    if ( status != 0 )
+    {
+        EPrintP("BCryptGetProperty %ws failed! (0x%x)\n", BCRYPT_KEY_STRENGTH, status);
+        goto clean;
+    }
+    ctxt->keyStrength = keyStrength;
+    DPrint("keyStrength: 0x%x\n", ctxt->keyStrength);
 
 clean:
     if ( key_bytes != NULL && key_bytes != key_file_bytes )
@@ -1281,7 +1332,7 @@ NTSTATUS RSA_importPrivKeyFromFile(
     if ( type != KEY_TYPE_BCBLOB )
     {
         status = STATUS_INVALID_PARAMETER;
-        //EPrint("Unsupported key type! (0x%x)\n", status);
+        EPrintP("Unsupported key type! (0x%x)\n", status);
         return status;
     }
 
@@ -1297,7 +1348,7 @@ NTSTATUS RSA_importPrivKeyFromFile(
     if ( blob->Magic != BCRYPT_RSAPRIVATE_MAGIC )
     {
         status = STATUS_UNSUCCESSFUL;
-        //EPrint("Not an RSA private key. (0x%x)\n", status);
+        EPrintP("Not an RSA private key. (0x%x)\n", status);
         goto clean;
     }
 
@@ -1312,9 +1363,26 @@ NTSTATUS RSA_importPrivKeyFromFile(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptImportKeyPair failed! (0x%x)\n", status);
+        EPrintP("BCryptImportKeyPair failed! (0x%x)\n", status);
         goto clean;
     }
+
+    UINT32 dataSize = sizeof(UINT32);
+    UINT32 keyStrength = 0;
+    status = BCryptGetProperty(
+        ctxt->priv_key,
+        BCRYPT_KEY_STRENGTH,
+        (PUINT8) &keyStrength,
+        dataSize,
+        &dataSize,
+        0);
+    if ( status != 0 )
+    {
+        EPrintP("BCryptGetProperty %ws failed! (0x%x)\n", BCRYPT_KEY_STRENGTH, status);
+        goto clean;
+    }
+    ctxt->keyStrength = keyStrength;
+    DPrint("keyStrength: 0x%x\n", ctxt->keyStrength);
 
 clean:
     if ( key_file_bytes )
@@ -1357,7 +1425,7 @@ NTSTATUS RSA_exportPrivKeyToDER(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1366,7 +1434,7 @@ NTSTATUS RSA_exportPrivKeyToDER(
     if ( buffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("LocalAlloc failed! (0x%x)\n", status);
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
@@ -1384,7 +1452,7 @@ NTSTATUS RSA_exportPrivKeyToDER(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1563,7 +1631,7 @@ NTSTATUS RSA_exportPrivKeyToBLOB(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1572,7 +1640,7 @@ NTSTATUS RSA_exportPrivKeyToBLOB(
     if ( buffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("LocalAlloc failed! (0x%x)\n", status);
+        EPrintP("LocalAlloc failed! (0x%x)\n", status);
         goto clean;
     }
     RtlZeroMemory(buffer, blob_ln);
@@ -1590,7 +1658,7 @@ NTSTATUS RSA_exportPrivKeyToBLOB(
     );
     if ( status != 0 || blob_ln_res == 0 )
     {
-        //EPrint("BCryptExportKey failed! (0x%x)\n", status);
+        EPrintP("BCryptExportKey failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1603,7 +1671,7 @@ NTSTATUS RSA_exportPrivKeyToBLOB(
     status = writeFileBytes(path, (UCHAR*)blob, blob_ln);
     if ( status != 0 )
     {
-        //EPrint("writeFileBytes failed! (0x%x)\n", status);
+        EPrintP("writeFileBytes failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -1642,7 +1710,7 @@ NTSTATUS RSA_encrypt(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptEncrypt get size! (0x%x)\n", status);
+        EPrintP("BCryptEncrypt get size! (0x%x)\n", status);
         goto clean;
     }
     DPrint("required_size: 0x%x\n", required_size);
@@ -1653,7 +1721,7 @@ NTSTATUS RSA_encrypt(
         if ( *encrypted == NULL )
         {
             status = STATUS_INSUFFICIENT_RESOURCES;
-            //EPrint("Malloc out buffer failed! (0x%x)\n", status);
+            EPrintP("Malloc out buffer failed! (0x%x)\n", status);
             goto clean;
         }
     }
@@ -1662,7 +1730,7 @@ NTSTATUS RSA_encrypt(
         if ( required_size > *encrypted_ln )
         {
             status = STATUS_BUFFER_TOO_SMALL;
-            //EPrint("Provided encryption buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *encrypted_ln, required_size, status);
+            EPrintP("Provided encryption buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *encrypted_ln, required_size, status);
             goto clean;
         }
     }
@@ -1685,7 +1753,7 @@ NTSTATUS RSA_encrypt(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptEncrypt failed! (0x%x)\n", status);
+        EPrintP("BCryptEncrypt failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -1721,7 +1789,7 @@ NTSTATUS RSA_decrypt(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptDecrypt get size! (0x%x)\n", status);
+        EPrintP("BCryptDecrypt get size! (0x%x)\n", status);
         goto clean;
     }
     DPrint("required_size: 0x%x\n", required_size);
@@ -1732,7 +1800,7 @@ NTSTATUS RSA_decrypt(
         if ( *plain == NULL )
         {
             status = STATUS_INSUFFICIENT_RESOURCES;
-            //EPrint("Malloc out buffer failed! (0x%x)\n", status);
+            EPrintP("Malloc out buffer failed! (0x%x)\n", status);
             goto clean;
         }
     }
@@ -1741,7 +1809,7 @@ NTSTATUS RSA_decrypt(
         if ( required_size > *plain_ln )
         {
             status = STATUS_BUFFER_TOO_SMALL;
-            //EPrint("Provided plain buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *plain_ln, required_size, status);
+            EPrintP("Provided plain buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *plain_ln, required_size, status);
             goto clean;
         }
     }
@@ -1764,7 +1832,7 @@ NTSTATUS RSA_decrypt(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptDecrypt failed! (0x%x)\n", status);
+        EPrintP("BCryptDecrypt failed! (0x%x)\n", status);
         goto clean;
     }
     
@@ -1775,7 +1843,7 @@ clean:
 }
 
 NTSTATUS RSA_signHash(
-    _In_ BCRYPT_KEY_HANDLE privKey,
+    _In_ PRSA_CTXT ctxt,
     _In_ LPCWSTR algId,
     _In_ PUCHAR hash,
     _In_ ULONG hash_ln,
@@ -1788,18 +1856,33 @@ NTSTATUS RSA_signHash(
     NTSTATUS status = STATUS_SUCCESS;
     ULONG required_size = 0;
 
-    // no OAEP padding possible
-    ULONG flags = BCRYPT_PAD_PKCS1;
-    // The BCRYPT_PKCS1_PADDING_INFO structure is used to provide options for the PKCS #1 padding scheme.
-    // PKCS #1
-    // The recommended standards for the implementation of public-key cryptography based on the RSA algorithm as defined in RFC 3447.
-    // Must match hash algorithm.
-    BCRYPT_PKCS1_PADDING_INFO pad_info = { 
-        .pszAlgId = algId
+    //ULONG flags = BCRYPT_PAD_PKCS1;
+    //// The BCRYPT_PKCS1_PADDING_INFO structure is used to provide options for the PKCS #1 padding scheme.
+    //// PKCS #1
+    //// The recommended standards for the implementation of public-key cryptography based on the RSA algorithm as defined in RFC 3447.
+    //// Must match hash algorithm.
+    //BCRYPT_PKCS1_PADDING_INFO pad_info = { 
+    //    .pszAlgId = algId
+    //};
+
+    // pss padding: resultLen = hashLen + saltLen + 2
+    if ( ctxt->keyStrength/8 < hash_ln + 2)
+        return STATUS_INVALID_PARAMETER;
+    
+    ULONG flags = BCRYPT_PAD_PSS;
+    BCRYPT_PSS_PADDING_INFO pad_info = {
+        .pszAlgId = algId,
+        .cbSalt = GetPssSaltLength(hash_ln, ctxt->keyStrength) 
     };
 
+    DPrint("flags: 0x%x\n", flags);
+    DPrint("hash_ln: 0x%x\n", hash_ln);
+    DPrint("pad_info\n");
+    DPrint("  pszAlgId: %ws\n", pad_info.pszAlgId);
+    DPrint("  cbSalt: 0x%x\n", pad_info.cbSalt);
+
     status = BCryptSignHash(
-        privKey,
+        ctxt->priv_key,
         &pad_info,
         hash,
         hash_ln,
@@ -1810,7 +1893,7 @@ NTSTATUS RSA_signHash(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptSignHash get size failed! (0x%x)\n", status);
+        EPrintP("BCryptSignHash get size failed! (0x%x)\n", status);
         goto clean;
     }
     DPrint("required_size: 0x%x\n", required_size);
@@ -1821,7 +1904,7 @@ NTSTATUS RSA_signHash(
         if ( *signature == NULL )
         {
             status = STATUS_INSUFFICIENT_RESOURCES;
-            //EPrint("malloc out buffer failed! (0x%x)\n", status);
+            EPrintP("malloc out buffer failed! (0x%x)\n", status);
             status = STATUS_NO_MEMORY;
             goto clean;
         }
@@ -1831,14 +1914,14 @@ NTSTATUS RSA_signHash(
         if ( required_size > *signature_ln )
         {
             status = STATUS_BUFFER_TOO_SMALL;
-            //EPrint("Provided plain buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *signature_ln, required_size, status);
+            EPrintP("Provided plain buffer[0x%x] is too small! 0x%x needed! (0x%x)\n", *signature_ln, required_size, status);
             goto clean;
         }
     }
     *signature_ln = required_size;
     
     status = BCryptSignHash(
-        privKey,
+        ctxt->priv_key,
         &pad_info,
         hash,
         hash_ln,
@@ -1849,7 +1932,7 @@ NTSTATUS RSA_signHash(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptSignHash failed! (0x%x)\n", status);
+        EPrintP("BCryptSignHash failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -1860,7 +1943,7 @@ clean:
 }
 
 NTSTATUS RSA_verifyHash(
-    _In_ BCRYPT_KEY_HANDLE pubKey,
+    _In_ PRSA_CTXT ctxt,
     _In_ LPCWSTR algId,
     _In_ PUCHAR hash,
     _In_ ULONG hash_ln,
@@ -1871,18 +1954,33 @@ NTSTATUS RSA_verifyHash(
     FEnter();
     NTSTATUS status = STATUS_SUCCESS;
     
-    // no OAEP padding possible
-    ULONG flags = BCRYPT_PAD_PKCS1;
-    // The BCRYPT_PKCS1_PADDING_INFO structure is used to provide options for the PKCS #1 padding scheme.
-    // PKCS #1
-    // The recommended standards for the implementation of public-key cryptography based on the RSA algorithm as defined in RFC 3447.
-    // Must match hash algorithm.
-    BCRYPT_PKCS1_PADDING_INFO pad_info = { 
-        .pszAlgId = algId
+    //ULONG flags = BCRYPT_PAD_PKCS1;
+    //// The BCRYPT_PKCS1_PADDING_INFO structure is used to provide options for the PKCS #1 padding scheme.
+    //// PKCS #1
+    //// The recommended standards for the implementation of public-key cryptography based on the RSA algorithm as defined in RFC 3447.
+    //// Must match hash algorithm.
+    //BCRYPT_PKCS1_PADDING_INFO pad_info = { 
+    //    .pszAlgId = algId
+    //};
+
+    // pss padding: resultLen = hashLen + saltLen + 2
+    if ( ctxt->keyStrength/8 < hash_ln + 2)
+        return STATUS_INVALID_PARAMETER;
+    
+    ULONG flags = BCRYPT_PAD_PSS;
+    BCRYPT_PSS_PADDING_INFO pad_info = {
+        .pszAlgId = algId,
+        .cbSalt = GetPssSaltLength(hash_ln, ctxt->keyStrength)
     };
 
+    DPrint("flags: 0x%x\n", flags);
+    DPrint("hash_ln: 0x%x\n", hash_ln);
+    DPrint("pad_info\n");
+    DPrint("  pszAlgId: %ws\n", pad_info.pszAlgId);
+    DPrint("  cbSalt: 0x%x\n", pad_info.cbSalt);
+
     status = BCryptVerifySignature(
-        pubKey,
+        ctxt->pub_key,
         &pad_info,
         hash,
         hash_ln,
@@ -1892,7 +1990,7 @@ NTSTATUS RSA_verifyHash(
     );
     if ( status != 0 )
     {
-        //EPrint("BCryptVerifySignature failed! (0x%x)\n", status);
+        EPrintP("BCryptVerifySignature failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -2025,7 +2123,7 @@ NTSTATUS loadFileBytes(
     {
         status = GetLastError();
         //status = STATUS_UNSUCCESSFUL;
-        //EPrint("Get full path failed for \"%s\"! (0x%x)\n", path, status);
+        EPrintP("Get full path failed for \"%s\"! (0x%x)\n", path, status);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
@@ -2036,7 +2134,7 @@ NTSTATUS loadFileBytes(
 #endif
     if ( status != 0 )
     {
-        //EPrint("RtlStringCchPrintfW failed! (0x%x)\n", status);
+        EPrintP("RtlStringCchPrintfW failed! (0x%x)\n", status);
         goto clean;
     }
     wpath[MAX_PATH - 1] = 0;
@@ -2066,14 +2164,14 @@ NTSTATUS loadFileBytes(
     );
     if ( status != 0 )
     {
-        //EPrint("NtCreateFile failed! (0x%x)\n", status);
+        EPrintP("NtCreateFile failed! (0x%x)\n", status);
         goto clean;
     }
 
     status = KGetFileSize(file, (PUINT64)&file_size);
     if ( status != 0 )
     {
-        //EPrint("KGetFileSize \"%s\" failed! (0x%x)\n", path, status);
+        EPrintP("KGetFileSize \"%s\" failed! (0x%x)\n", path, status);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
@@ -2082,7 +2180,7 @@ NTSTATUS loadFileBytes(
     if ( *buffer == NULL )
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
-        //EPrint("Allocating buffer failed! (0x%x)\n", status);
+        EPrintP("Allocating buffer failed! (0x%x)\n", status);
         status = STATUS_NO_MEMORY;
         goto clean;
     }
@@ -2103,14 +2201,14 @@ NTSTATUS loadFileBytes(
     );
     if ( status != 0 || iosb.Status != 0 )
     {
-        //EPrint("NtReadFile failed! (0x%x)\n", status);
+        EPrintP("NtReadFile failed! (0x%x)\n", status);
         goto clean;
     }
     if ( (ULONG)iosb.Information > *buffer_ln )
     {
         status = STATUS_UNSUCCESSFUL;
         *buffer_ln = 0;
-        //EPrint("key_buffer to small. 0x%x needed! (0x%x)\n", (ULONG)iosb.Information, status);
+        EPrintP("key_buffer to small. 0x%x needed! (0x%x)\n", (ULONG)iosb.Information, status);
         goto clean;
     }
     *buffer_ln = (ULONG)iosb.Information;
@@ -2166,7 +2264,7 @@ NTSTATUS writeFileBytes(
     if (!fpl)
     {
         status = GetLastError();
-        //EPrint("Get full path failed for \"%s\"! (0x%x)", path, status);
+        EPrintP("Get full path failed for \"%s\"! (0x%x)", path, status);
         status = STATUS_OBJECT_NAME_NOT_FOUND;
         goto clean;
     }
@@ -2177,7 +2275,7 @@ NTSTATUS writeFileBytes(
 #endif
     if ( status != 0 )
     {
-        //EPrint("RtlStringCchPrintfW failed! (0x%x)\n", status);
+        EPrintP("RtlStringCchPrintfW failed! (0x%x)\n", status);
         goto clean;
     }
     wpath[MAX_PATH - 1] = 0;
@@ -2207,7 +2305,7 @@ NTSTATUS writeFileBytes(
     );
     if ( status != 0 )
     {
-        //EPrint("NtCreateFile failed! (0x%x)\n", status);
+        EPrintP("NtCreateFile failed! (0x%x)\n", status);
         goto clean;
     }
 
@@ -2225,7 +2323,7 @@ NTSTATUS writeFileBytes(
     );
     if ( status != 0 || iosb.Status != 0 )
     {
-        //EPrint("NtReadFile failed! (0x%x)\n", status);
+        EPrintP("NtReadFile failed! (0x%x)\n", status);
         goto clean;
     }
 
