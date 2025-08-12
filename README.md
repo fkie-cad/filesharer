@@ -1,7 +1,5 @@
-# TCP Fileshare client and server
-Cross Os (Linux/Windows) Fileshare client and server.  
-
-Encryption is supported, but still in experimental state.
+# TCP Fileshare Client and Server
+Cross Os (Linux/Windows) fileshare client and server with optional encryption.
 
 Warning: 
 This tool at some stages has been flagged as a positive threat by Windows Defender for unknown reasons. 
@@ -11,20 +9,20 @@ Compiles and runs under
 - Linux 
 - Windows (x86/x64)  
 - Android in Termux
-- OsX may work too
 
 
-## Version ##
+## Version
 1.4.4  
 Last changed: 31.07.2025
 
 
 ## Requirements
-### Linux ###
+
+### Linux 
 - gcc
 - Openssl (dev) library (openssl-dev, libssl-dev or sth. like that)
 
-### Windows ###
+### Windows
 - msbuild 
 
 
@@ -36,8 +34,9 @@ Last changed: 31.07.2025
 $ winBuild.bat [/app] [/m <Release|Debug>] [/b <32|64>] [/rtl] [/pdb] [/bt <path>] [/pts <PlatformToolset>] [/h]
 ```
 
-The PlatformToolset defaults to "v142" but may be changed with the `/pts` option.
+The PlatformToolset defaults to "v143" but may be changed with the `/pts` option.
 "v142" is used for VS 2019, "v143" would be used in VS 2022.
+
 
 ### Runtime Errors (Windows)
 If a "VCRUNTIMExxx.dll not found Error" occurs on the target system, statically including the runtime libraries is a solution.  
@@ -115,7 +114,7 @@ Obviously, if the server expects encrypted files (i.e. the `-k <path>` option is
 the client has to send encrypted files (i.e. set the `-k <path>` option).
 
 
-### Performance
+## Performance
 Files are sent in chunks of 0x100000 byte blocks. 
 The block size may be changed with the `-s` option in client mode.
 The server will adopt this value.
@@ -124,10 +123,10 @@ If memory is low, this value may be decreased, at least down to 0x1000.
 
 After each block, the client waits for an answer of the server, which slows down the process.
 To speed up the transfer, the value may be increased (theoretically) up to 0xFFFFFFFF. 
-The upper limit comes due to the MS BCrypt limit, that expects a ULONG (32-bit uint) as the length value in en/decryption functions.
+The upper limit comes due to the MS BCrypt API limit, that expects a ULONG (32-bit uint) as the length value in en/decryption functions.
 
 
-### Encryption
+## Encryption
 Encryption is done by RSA (OAEP padding) and AES256 in CBC mode.
 An AES secret and IV as randomly created for each file.
 The AES secret and IV is encrypted with the public RSA key and sent to the server.
@@ -148,26 +147,26 @@ Files are sent in chunks of 0x100000 (or whatever the `-s` option is set to) byt
 For each block, the IV is rotated, so it should be different for each block.
 
 
-### Integrity
+## Integrity
 The file data itself is checked by its sha256 hash. 
 Integrity checks and server authentication for the headers and maybe the answers as well will be added in future versions when RSA signing is got to work correctly on Windows.
 
 
-### Create keys
+## Create keys
 ```bash
 $ openssl ...
 ```
 There is a [createOpenSslCert.sh](scripts/createOpenSslCert.sh) for Linux and also for Windows: [createOpenSslCert.bat](https://github.com/fkie-cad/windowsScripts/blob/master/crypto/createOpensslCert.bat)
 
 
-### Questions, bugs, problems, issues
+## Questions, bugs, problems, issues
 Feel free to open an issue.
 
 
 
-## COPYRIGHT, CREDITS & CONTACT ## 
+## COPYRIGHT, CREDITS & CONTACT
 Published under [GNU GENERAL PUBLIC LICENSE](LICENSE).
 
 
-#### Author ####
+### Author
 - Henning Braun ([henning.braun@fkie.fraunhofer.de](henning.braun@fkie.fraunhofer.de)) 
