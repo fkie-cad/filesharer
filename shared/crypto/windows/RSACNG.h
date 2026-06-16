@@ -54,7 +54,8 @@ typedef enum _KEY_TYPE {
  */
 NTSTATUS RSA_init(
     _Out_ PRSA_CTXT ctxt,
-    _In_ ULONG padding
+    _In_ ULONG padding,
+    _In_ PWCHAR padInfoAlgId
 );
 
 /**

@@ -250,26 +250,39 @@ int sha256BufferC(
     return hashBufferC(buffer, buffer_ln, hash_bytes, hash_bytes_size, ctxt);
 }
 
-void hashToString(const unsigned char* hash, uint16_t hash_size, char* output, uint16_t output_size)
+int hashToString(const unsigned char* hash, uint16_t hash_size, char* output, uint16_t output_size)
 {
-    uint16_t i = 0;
-    //uint16_t rest = output_size;
-    char* digitMap = "0123456789abcdef";
+    UINT16 i = 0;
+    UINT16 j = 0;
+    UINT8 t = 0;
+    
+    if ( !hash || !hash_size || !output || !output_size )
+        return STATUS_INVALID_PARAMETER;
+    
+    //output[0] = 0;
 
-    if ( (hash_size * 2) + 1 > output_size )
+    if ( hash_size+1 > UINT16_MAX/2 )
+        return STATUS_INVALID_PARAMETER;
+
+    if ( (hash_size*2)+1 > output_size )
     {
-        EPrint(STATUS_BUFFER_TOO_SMALL, "output_size too small!\n");
-        return;
+        return STATUS_BUFFER_TOO_SMALL;
     }
 
-    for ( i = 0; i < hash_size; i++ )
+    for ( i = 0, j = 0; i < hash_size; i++, j+=2 )
     {
-        output[i] = digitMap[(hash[i]>>4)&0xF];
-        output[i+1] = digitMap[(hash[i])&0xF];
-        //StringCchPrintfA(output + (i * 2), rest--, "%02x", hash[i]);
+        t = (hash[i]>>4)&0xF;
+        t = ( t < 10 ) ? t + 0x30 : t + 0x57;
+        output[j] = (CHAR)t;
+        
+        t = (hash[i])&0xF;
+        t = ( t < 10 ) ? t + 0x30 : t + 0x57;
+        output[j+1] = (CHAR)t;
     }
 
-    output[output_size-1] = 0;
+    output[hash_size*2] = 0;
+
+    return 0;
 }
 
 void printHash(const unsigned char* hash, uint16_t hash_size, const char* prefix, const char* postfix)

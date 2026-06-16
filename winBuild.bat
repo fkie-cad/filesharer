@@ -18,9 +18,9 @@ set /a ep=1
 
 set /a verbose=0
 
-set /a bt_year=2022
+set /a bt_year=18
 set buildTools="C:\Program Files (x86)\Microsoft Visual Studio\%bt_year%\BuildTools"
-set pts=v143
+set pts=v145
 
 
 :: default
@@ -49,9 +49,12 @@ GOTO ParseParams
         SHIFT
         goto reParseParams
     )
-    IF /i "%~1"=="/m" (
-        SET mode=%~2
-        SHIFT
+    IF /i "%~1"=="/d" (
+        SET mode=Debug
+        goto reParseParams
+    )
+    IF /i "%~1"=="/r" (
+        SET mode=Release
         goto reParseParams
     )
     IF /i "%~1"=="/bt" (
@@ -187,8 +190,8 @@ GOTO :ParseParams
 
 
 :usage
-    echo Usage: %my_name% [/app] [/b ^<bitness^>] [/m ^<mode^>] [/rtl] [/pdb] [/pts ^<toolset^>] [/bt ^<path^>] [/v] [/h]
-    echo Default: %my_name% [/t app /b %bitness% /m %mode% /bt %buildTools% /pts %pts%]
+    echo Usage: %my_name% [/app] [/b ^<bitness^>] [/d^/r] [/rtl] [/pdb] [/pts ^<toolset^>] [/bt ^<path^>] [/v] [/h]
+    REM echo Default: %my_name% [/t app /b %bitness% /r /bt %buildTools% /pts %pts%]
     exit /B 0
 
 :help
@@ -200,11 +203,12 @@ GOTO :ParseParams
     echo.
     echo Options:
     echo /b Target bitness: 32^|64. Default: 64.
-    echo /m Build mode: Debug^|Release. Default: Release.
+    echo /d Build in Debug mode.
+    echo /r Build in Release mode. (Default)
     echo /rtl Statically include runtime libs. May be needed if a "VCRUNTIMExxx.dll not found Error" occurs on the target system.
     echo /pdb Include pdb symbols into release build. Default in debug mode. 
     echo /bt Custom path to Microsoft Visual Studio BuildTools.
-    echo /pts MsBuild platform toolset. Defaults to "v142".
+    echo /pts MsBuild platform toolset. Defaults to "v145".
     echo.
     echo /v more verbose output
     echo /h print this

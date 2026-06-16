@@ -18,7 +18,7 @@ int c_init(
 {
     int s = 0;
 
-    s = RSA_init(&rsa_ctxt, RSA_PADDING);
+    s = RSA_init(&rsa_ctxt, RSA_PADDING, BCRYPT_SHA1_ALGORITHM);
     if ( s < 0 )
     {
 #ifdef ERROR_PRINT
@@ -318,22 +318,22 @@ int delete_AESKey()
     return AES_deleteKey(&aes_ctxt);
 }
 
-#include <intrin.h>
-// # : 8^16  2^48
-int rotate64Iv(uint8_t* iv, uint32_t id)
-{
-    int s = 0;
-
-    uint32_t i;
-    uint8_t rot;
-
-    for ( i = 0; i < 0x10; i++ )
-    {
-        rot = id % 0x8;
-        iv[i] = _rotl8(iv[i], rot);
-    
-        id = id >> 0x3;
-    }
-
-    return s;
-}
+//#include <intrin.h>
+//// # : 8^16  2^48
+//int rotate64Iv(uint8_t* iv, uint32_t id)
+//{
+//    int s = 0;
+//
+//    uint32_t i;
+//    uint8_t rot;
+//
+//    for ( i = 0; i < 0x10; i++ )
+//    {
+//        rot = id % 0x8;
+//        iv[i] = _rotl8(iv[i], rot);
+//    
+//        id = id >> 0x3;
+//    }
+//
+//    return s;
+//}

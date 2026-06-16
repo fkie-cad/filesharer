@@ -65,7 +65,6 @@ int createFilePath(
     char* SubDir, 
     char* BaseName, 
     FsFileHeader* FileHeader, 
-    FsKeyHeader* KeyHeader, 
     SOCKET ClientSocket, 
     bool IsEncrypted
 );
@@ -78,8 +77,6 @@ void printProgress(
 int writeBlockToFile(
     bool is_encrypted,
     SOCKET ClientSocket,
-    FsKeyHeader* key_header,
-    uint32_t enc_part_i,
     uint8_t* file_buffer,
     uint32_t* buffer_size,
     FILE* fp
@@ -90,8 +87,7 @@ int sendAnswer(
     uint32_t code, 
     size_t info, 
     SOCKET sock, 
-    bool is_encrypted, 
-    FsKeyHeader* key_header
+    bool is_encrypted
 );
 
 int handleData(
@@ -135,6 +131,7 @@ int runServer(
 
     char *rec_dir = NULL;
     char full_path[MAX_PATH];
+    size_t fpcb = 0;
 
     if ( start_i >= argc )
         return -1;
@@ -144,17 +141,17 @@ int runServer(
 
     rec_dir = argv[start_i];
     memset(full_path, 0, MAX_PATH);
-    s = (int)getFullPathName(rec_dir, MAX_PATH, full_path, NULL);
-    if ( !s )
+    fpcb = getFullPathName(rec_dir, MAX_PATH, full_path, NULL);
+    if ( !fpcb )
     {
-        EPrint(-1, "Directory \"%s\" not found!", full_path);
-        return 0;
+        EPrintP("Directory \"%s\" not found! (0x%x)", full_path, -1);
+        return -1;
     }
     s = checkPath(full_path, true);
-    if (!s)
+    if ( !s )
     {
-        EPrint(-1, "Directory \"%s\" not found!", full_path);
-        return 0;
+        EPrintP("Directory \"%s\" not found! (0x%x)", full_path, -1);
+        return -1;
     }
     cropTrailingSlash(full_path);
     printf("target dir: %s\n\n", full_path);
@@ -178,7 +175,7 @@ int runServer(
     if ( s == SOCKET_ERROR )
     {
         s = getLastSError();
-        EPrint(s, "bind failed!\n");
+        EPrintP("bind failed! (0x%x)\n", s);
         goto clean;
     }
     DPrint("socket bound\n");
@@ -191,7 +188,7 @@ int runServer(
     if ( s == SOCKET_ERROR )
     {
         s = getLastSError();
-        EPrint(s, "listen failed\n");
+        EPrintP("listen failed! (0x%x)\n", s);
         goto clean;
     }
     DPrint("listening\n");
@@ -244,10 +241,10 @@ int handleConnection(SOCKET ListenSocket, char* rec_dir, uint16_t flags)
     if ( clientSocket == INVALID_SOCKET )
     {
         le = getLastSError();
-        printf(" - accept failed with error: 0x%x\n", le);
+        printf("  accept failed with error: 0x%x\n", le);
         return 1;
     }
-    printf(" - connection accepted\n");
+    printf("  connection accepted\n");
     if ( addr_ln > 0)
     {
         printf("Connected Client Info:\n");
@@ -349,6 +346,10 @@ int handleData(
     //int le;
     int errsv;
 
+    uint8_t* iv_ptr = NULL;
+    uint8_t* data_ptr = NULL;
+    uint32_t data_size = 0;
+
     if ( *data_state == DATA_STATE_KEY_HEADER )
     {
         memset(key_header, 0, sizeof(*key_header));
@@ -367,7 +368,7 @@ int handleData(
 //        result = sizeof(*key_header);
         result = bytes_received; // openssl rsa wants plain buffer of encrypted size
         DPrint("encrypted key header\n");
-        DPrintMemCol8(gBuffer, bytes_received, 0);
+        DPrintBytes(gBuffer, bytes_received);
 
         s = decryptKey(
             gBuffer, 
@@ -377,10 +378,9 @@ int handleData(
         );
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Decrypting key header failed!\n");
+            EPrintP("\nDecrypting key header failed! (0x%x)\n", s);
             // can't really send an answer without decrypted key unless sending it unencrypted
-            //sendAnswer(1, FS_ERROR_DECRYPT_AES_KEY, bytes_received, ClientSocket, is_encrypted, key_header);
+            //sendAnswer(1, FS_ERROR_DECRYPT_AES_KEY, bytes_received, ClientSocket, is_encrypted);
             goto clean;
         }
         DPrint("decrypted key header\n");
@@ -388,8 +388,7 @@ int handleData(
 
         if ( key_header->type != FS_TYPE_KEY_HEADER )
         {
-            EPrintNl();
-            EPrint(s, "Expected key header, but got 0x%"PRIx64"\n", key_header->type);
+            EPrintP("\nExpected key header, but got 0x%"PRIx64"! (0x%x)\n", key_header->type, s);
             // can't really send an answer without decrypted key unless sending it unencrypted
             goto clean;
         }
@@ -403,16 +402,15 @@ int handleData(
         s = generateAESKey(key_header->secret, AES_SECRET_SIZE);
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Generating AES key failed!\n");
+            EPrintP("\nGenerating AES key failed! (0x%x)\n", s);
             // can't really send an answer without generated key unless sending it unencrypted
-            //sendAnswer(1, FS_ERROR_GENERATE_AES_KEY, bytes_received, ClientSocket, is_encrypted, key_header);
+            //sendAnswer(1, FS_ERROR_GENERATE_AES_KEY, bytes_received, ClientSocket, is_encrypted);
             goto clean;
         }
 
         // send header-received answer
         // TODO: send priv.key encrypted/signed sha256 of header as a signature
-        errsv = sendAnswer(1, FS_PACKET_SUCCESS, bytes_received, ClientSocket, is_encrypted, key_header);
+        errsv = sendAnswer(1, FS_PACKET_SUCCESS, bytes_received, ClientSocket, is_encrypted);
         if ( errsv != 0 )
         {
             goto clean;
@@ -431,45 +429,55 @@ int handleData(
         if ( is_encrypted )
         {
             DPrint("encrypted file header\n");
-            DPrintMemCol8(gBuffer, result, 0);
+            DPrintBytes(gBuffer, result);
 
-            buffer_size = BUFFER_SIZE;
+            iv_ptr = gBuffer;
+            data_ptr = &gBuffer[AES_IV_SIZE];
+            data_size = result - AES_IV_SIZE;
+
+            buffer_size = BUFFER_SIZE - AES_IV_SIZE;
             buffer_ptr = (uint8_t*)gBuffer;
-            s = decryptData(gBuffer, result, &buffer_ptr, &buffer_size, key_header->iv, AES_IV_SIZE);
+            s = decryptData(data_ptr, data_size, &data_ptr, &buffer_size, iv_ptr, AES_IV_SIZE);
             if ( s != 0 )
             {
-                EPrintNl();
-                EPrint(s, "Encrypting file header failed!\n");
-                sendAnswer(4, FS_ERROR_DECRYPT_FILE_HEADER, 0, ClientSocket, is_encrypted, key_header);
+                EPrintP("\nEncrypting file header failed! (0x%x)\n", s);
+                sendAnswer(4, FS_ERROR_DECRYPT_FILE_HEADER, 0, ClientSocket, is_encrypted);
                 goto clean;
             }
             DPrint("decrypted file header\n");
-            DPrintMemCol8(gBuffer, buffer_size, 0);
+            DPrintMemCol8(data_ptr, buffer_size, 0);
         }
         else
         {
+            data_ptr = &gBuffer[0];
+            data_size = result;
             buffer_size = result;
         }
 
-        loadFsFileHeader(gBuffer, file_header, base_name, BASE_NAME_MAX_SIZE, sub_dir, SUB_DIR_MAX_SIZE, hash, SHA256_BYTES_LN);
+        s = loadFsFileHeader(data_ptr, buffer_size, file_header, base_name, BASE_NAME_MAX_SIZE, sub_dir, SUB_DIR_MAX_SIZE, hash, SHA256_BYTES_LN);
+        if ( s != 0 )
+        {
+            EPrintP("\nExpected file header too short! (0x%x)\n", s);
+            sendAnswer(4, FS_ERROR_WRONG_HEADER_SIZE, 0, ClientSocket, is_encrypted);
+            goto clean;
+        }
         printFsFileHeader(file_header, " - ");
 
         if ( file_header->type != FS_TYPE_FILE_HEADER )
         {
-            EPrintNl();
-            EPrint(s, "Expected file header, but got 0x%"PRIx64"\n", key_header->type);
-            sendAnswer(4, FS_ERROR_WRONG_HEADER_TYPE, 0, ClientSocket, is_encrypted, key_header);
+            EPrintP("\nExpected file header, but got 0x%"PRIx64"! (0x%x)\n", key_header->type, s);
+            sendAnswer(4, FS_ERROR_WRONG_HEADER_TYPE, 0, ClientSocket, is_encrypted);
             goto clean;
         }
 
         if ( strlen(rec_dir) + file_header->sub_dir_ln + file_header->base_name_ln + 3 >= MAX_PATH )
         {
-            sendAnswer(4, FS_ERROR_FILE_PATH_TOO_BIG, 0, ClientSocket, is_encrypted, key_header);
+            sendAnswer(4, FS_ERROR_FILE_PATH_TOO_BIG, 0, ClientSocket, is_encrypted);
             s = -1;
             goto clean;
         }
 
-        s = createFilePath(file_path, MAX_PATH, rec_dir, sub_dir, base_name, file_header, key_header, ClientSocket, is_encrypted);
+        s = createFilePath(file_path, MAX_PATH, rec_dir, sub_dir, base_name, file_header, ClientSocket, is_encrypted);
         if ( s != 0 )
             goto clean;
 
@@ -482,14 +490,14 @@ int handleData(
         *nrBlocks = file_header->parts_count;
 
         // allocate file block buffer
-        buffer_size = (file_header->parts_count > 0) 
+        buffer_size = ( file_header->parts_count > 0 ) 
                     ? file_header->parts_block_size 
                     : file_header->parts_rest;
         *file_buffer = (uint8_t*)malloc(buffer_size);
         if ( !(*file_buffer) )
         {
-            EPrint(getLastError(), "malloc file buffer failed\n");
-            sendAnswer(4, FS_ERROR_ALLOC_FILE_BUFFER, 0, ClientSocket, is_encrypted, key_header);
+            EPrintP("malloc file buffer failed! (0x%x)\n", getLastError());
+            sendAnswer(4, FS_ERROR_ALLOC_FILE_BUFFER, 0, ClientSocket, is_encrypted);
             s = -1;
             goto clean;
         }
@@ -501,15 +509,15 @@ int handleData(
         errsv = errno;
         if ( *fp == NULL )
         {
-            EPrint(errsv, "Creating file \"%s\" failed.\n", file_path);
-            sendAnswer(2, FS_ERROR_CREATE_FILE, 0, ClientSocket, is_encrypted, key_header);
+            EPrintP("Creating file \"%s\" failed! (0x%x)\n", file_path, errsv);
+            sendAnswer(2, FS_ERROR_CREATE_FILE, 0, ClientSocket, is_encrypted);
             s = -1;
             goto clean;
         }
         DPrint(" - file created\n");
 
         // send header-received answer
-        errsv = sendAnswer(1, FS_PACKET_SUCCESS, bytes_received, ClientSocket, is_encrypted, key_header);
+        errsv = sendAnswer(1, FS_PACKET_SUCCESS, bytes_received, ClientSocket, is_encrypted);
         if ( errsv != 0 )
         {
             goto clean;
@@ -524,8 +532,8 @@ int handleData(
         
         if ( !(*file_buffer) )
         {
-            EPrint(-1, "No file buffer found\n");
-            sendAnswer(4, FS_ERROR_NULL_FILE_BUFFER, 0, ClientSocket, is_encrypted, key_header);
+            EPrintP("No file buffer found! (0x%x)\n", -1);
+            sendAnswer(4, FS_ERROR_NULL_FILE_BUFFER, 0, ClientSocket, is_encrypted);
             s = -1;
             goto clean;
         }
@@ -545,7 +553,7 @@ int handleData(
         {
             DPrint("Writing block 0x%x\n", file_header->parts_count - (*nrBlocks));
             buffer_size = (uint32_t)file_header->parts_block_size;
-            s = writeBlockToFile(is_encrypted, ClientSocket, key_header, (file_header->parts_count - (*nrBlocks)), *file_buffer, &buffer_size, *fp);
+            s = writeBlockToFile(is_encrypted, ClientSocket, *file_buffer, &buffer_size, *fp);
             if ( s != 0 )
                 goto clean;
             
@@ -565,7 +573,7 @@ int handleData(
         {
             DPrint("Writing rest\n");
             buffer_size = (uint32_t)file_header->parts_rest;
-            s = writeBlockToFile(is_encrypted, ClientSocket, key_header, (file_header->parts_count - (*nrBlocks)), *file_buffer, &buffer_size, *fp);
+            s = writeBlockToFile(is_encrypted, ClientSocket, *file_buffer, &buffer_size, *fp);
             if ( s != 0 )
                 goto clean;
 
@@ -584,7 +592,7 @@ int handleData(
             // because the two answers (block answer, and fully-received answer) might be buffered and sent at once.
 //            DPrint("Sending answer.\n");
 //            // send file-fully-received answer
-//            errsv = sendAnswer(2, FS_PACKET_SUCCESS, *file_bytes_received, ClientSocket, is_encrypted, key_header);
+//            errsv = sendAnswer(2, FS_PACKET_SUCCESS, *file_bytes_received, ClientSocket, is_encrypted);
 //            if ( errsv != 0 )
 //            {
 //                goto clean;
@@ -633,63 +641,92 @@ clean:
     return s;
 }
 
-int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_encrypted, FsKeyHeader* key_header)
+int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_encrypted)
 {
     int errsv;
     sendlen_t bytes_sent;
-    int s;
+    sendlen_t send_size;
+    int s = 0;
+
+    size_t answer_offset = ( is_encrypted ) ? AES_IV_SIZE : 0;
+    uint8_t* answer_ptr = &gBuffer[answer_offset];
+
     FsAnswer a = { .state = state, .code = code, .info = info };
-    s = generateRand(a.garbage, AES_IV_SIZE);
-    if ( s != 0 )
-    {
-        EPrintNl();
-        EPrint(s, "Generating IV failed!\n");
-        return -1;
-    }
-    uint32_t answer_size = (uint32_t)saveFsAnswer(gBuffer, &a);
+    uint32_t answer_size = (uint32_t)saveFsAnswer(answer_ptr, &a);
     uint32_t buffer_size = BUFFER_SIZE;
-    uint8_t* buffer_ptr = (uint8_t*)gBuffer;
+    //uint8_t* buffer_ptr = (uint8_t*)gBuffer;
     
     DPrint("sendAnswer\n");
     
     if ( is_encrypted )
     {
-        DPrint(" - buffer:\n");
-        DPrintMemCol8(gBuffer, answer_size, 0);
+        DPrint("  buffer:\n");
+        DPrintBytes(gBuffer, answer_size);
+        
+        uint8_t iv[AES_IV_SIZE];
+        s = generateIV(iv, AES_IV_SIZE);
+        if ( s != 0 )
+        {
+            EPrintP("Generating IV failed! (0x%x)\n", s);
+            goto clean;
+        }
+        // prefix data with iv
+        memcpy(gBuffer, iv, AES_IV_SIZE);
+        buffer_size -= AES_IV_SIZE;
 
         s = encryptData(
-            gBuffer, 
+            answer_ptr, 
             answer_size, 
-            &buffer_ptr, 
+            &answer_ptr, 
             &buffer_size, 
-            key_header->iv, 
+            iv, 
             AES_IV_SIZE
         );
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Encrypting file header failed!\n");
-            return -2;
+            EPrintP("\nEncrypting file header failed! (0x%x)\n", s);
+            goto clean;
         }
-        DPrint(" - encrypted:\n");
-        DPrintMemCol8(buffer_ptr, buffer_size, 0);
+        DPrint("  encrypted:\n");
+        DPrintBytes(answer_ptr, buffer_size);
+
+        send_size = AES_IV_SIZE + buffer_size;
     }
     else
     {
-        buffer_size = answer_size;
+        send_size = answer_size;
     }
 
+    // make compiler happy sanity check
+    if ( send_size < 0 || (uint32_t)send_size > BUFFER_SIZE )
+    {
+        EPrintP("Answer send size out of range! (0x%x)\n", (uint32_t)send_size);
+        s = -1;
+        goto clean;
+    }
     errno = 0;
-    bytes_sent = send(sock, (char*)gBuffer, buffer_size, 0);
+
+#if defined(_WIN32)
+// disabling false positive:
+// warning C6385: Reading invalid data from 'gBuffer'
+#pragma warning(disable: 6385)
+#endif
+    bytes_sent = send(sock, (char*)gBuffer, send_size, 0);
+#if defined(_WIN32)
+#pragma warning(default: 6385)
+#endif
     
-    DPrint(" - bytes_sent: 0x%x\n", (int)bytes_sent);
+    DPrint("  bytes_sent: 0x%x\n", (int)bytes_sent);
     if ( bytes_sent < 0 )
     {
         errsv = getLastSError();
-        EPrint(errsv, "Sending answer failed.\n");
+        EPrintP("Sending answer failed! (0x%x)\n", errsv);
         return -3;
     }
-    return 0;
+
+clean:
+
+    return s;
 }
 
 bool checkHash(char* path, uint8_t* f_hash)
@@ -702,7 +739,7 @@ bool checkHash(char* path, uint8_t* f_hash)
     if ( s != 0 )
     {
         EPrintCr();
-        EPrint(s, "Calculating hash failed!\n");
+        EPrintP("Calculating hash failed! (0x%x)\n", s);
         return false;
     }
     printf("\r");
@@ -718,7 +755,6 @@ int createFilePath(
     char* SubDir, 
     char* BaseName, 
     FsFileHeader* FileHeader, 
-    FsKeyHeader* KeyHeader, 
     SOCKET ClientSocket, 
     bool IsEncrypted
 )
@@ -726,6 +762,11 @@ int createFilePath(
     FEnter();
     
     int s = 0;
+
+    int pb = 0;
+    int bw = 0;
+    size_t fpbw = 0;
+    size_t pd_cb = strlen(ParentDir);
     
     DPrint("  FilePath: %s\n", FilePath);
     DPrint("  FilePathMaxSize: 0x%x\n", FilePathMaxSize);
@@ -733,9 +774,8 @@ int createFilePath(
     DPrint("  SubDir: %s\n", SubDir);
     DPrint("  BaseName: %s\n", BaseName);
     DPrint("  FileHeader: %p\n", (void*)FileHeader);
-    DPrint("  KeyHeader: %p\n", (void*)KeyHeader);
     DPrint("  ClientSocket: %p\n", (void*)ClientSocket);
-    DPrint("  IsEncrypted: %u\n", IsEncrypted);
+    DPrint("  IsEncrypted: %d\n", IsEncrypted);
 
     char* tmpPath = malloc(FilePathMaxSize);
     if ( !tmpPath )
@@ -746,18 +786,35 @@ int createFilePath(
     
     memset(FilePath, 0, FilePathMaxSize);
     memset(tmpPath, 0, FilePathMaxSize);
-    int pb = sprintf(tmpPath, "%s", ParentDir);
+    bw = sprintf(tmpPath, "%s", ParentDir);
+    if ( bw == -1 )
+    {
+        s = -1;
+        goto clean;
+    }
+    pb += bw;
+
+    // tmpPath = ParentDir
     if ( FileHeader->sub_dir_ln != 0 )
     {
         convertPathSeparator(SubDir);
         cropTrailingSlash(SubDir);
         // construct directory string
-        pb += sprintf(&tmpPath[pb], "%c%s", PATH_SEPARATOR, SubDir);
+        bw = sprintf(&tmpPath[pb], "%c%s", PATH_SEPARATOR, SubDir);
+        if ( bw == -1 )
+        {
+            s = -1;
+            goto clean;
+        }
+        pb += bw;
+        // tmpPath = ParentDir/SubDir
+        
         // get abs path
-        size_t pb2 = getFullPathName(tmpPath, FilePathMaxSize, FilePath, NULL);
+        fpbw = getFullPathName(tmpPath, FilePathMaxSize, FilePath, NULL);
         // check if we are still in ParentDir
-        if ( !pb2 || pb2 >= FilePathMaxSize 
-            || strncmp(FilePath, ParentDir, strlen(ParentDir)) != 0 )
+        if ( !fpbw || fpbw >= FilePathMaxSize
+            || strncmp(FilePath, ParentDir, pd_cb) != 0
+            || (FilePath[pd_cb] != PATH_SEPARATOR && FilePath[pd_cb] != '\0') )
         {
             s = -2;
             goto clean;
@@ -769,9 +826,10 @@ int createFilePath(
             goto clean;
     }
 
-    // construct full file path
-    pb = sprintf(&tmpPath[pb], "%c%s", PATH_SEPARATOR, BaseName);
-    if ( pb < 0 || pb >= (int)FilePathMaxSize )
+    // add BaseName to construct full file path
+    bw = sprintf(&tmpPath[pb], "%c%s", PATH_SEPARATOR, BaseName);
+    // tmpPath = ParentDir/SubDir/BaseName
+    if ( bw < 0 || bw >= FilePathMaxSize )
     {
         s = getLastError();
         EPrintP("sprintf failed! (0x%x)\n", s);
@@ -780,30 +838,33 @@ int createFilePath(
     DPrint("  tmpPath: %s\n", tmpPath);
     // get abs path
     char* checkBaseName = NULL;
-    pb = getFullPathName(tmpPath, FilePathMaxSize, FilePath, (char**)&checkBaseName);
-    DPrint("pb: 0x%x\n", pb);
+    fpbw = getFullPathName(tmpPath, FilePathMaxSize, FilePath, (char**)&checkBaseName);
+    DPrint("fpbw: 0x%zx\n", fpbw);
     DPrint("checkBaseName: %s\n", checkBaseName);
     // check if we are still in ParentDir and baseName fits
-    if ( !pb || (uint32_t)pb >= FilePathMaxSize 
-        || strncmp(FilePath, ParentDir, strlen(ParentDir)) != 0
+
+    if ( !fpbw || fpbw >= FilePathMaxSize
+        || strncmp(FilePath, ParentDir, pd_cb) != 0
+        || (FilePath[pd_cb] != PATH_SEPARATOR && FilePath[pd_cb] != '\0')
         || strcmp(checkBaseName, BaseName) != 0 )
     {
-        EPrintP("parent dir check failed!\n");
         s = -3;
+        EPrintP("parent dir check failed! (0x%x)\n", s);
         goto clean;
     }
     s = 0;
 
-    memcpy(FilePath, tmpPath, pb);
+    //memcpy(FilePath, tmpPath, pb);
     DPrint("  FilePath: %s\n", FilePath);
     
-
 clean:
     if ( s != 0 )
     {
-        sendAnswer(4, FS_ERROR_CREATE_DIR, 0, ClientSocket, IsEncrypted, KeyHeader);
+        sendAnswer(4, FS_ERROR_CREATE_DIR, 0, ClientSocket, IsEncrypted);
         memset(FilePath, 0, FilePathMaxSize);
     }
+    if ( tmpPath )
+        free(tmpPath);
     
     FLeave();
     return s;
@@ -823,9 +884,6 @@ void printProgress(size_t br, size_t fs)
 int writeBlockToFile(
     bool is_encrypted,
     SOCKET ClientSocket,
-    //FsFileHeader* file_header,
-    FsKeyHeader* key_header,
-    uint32_t enc_part_i,
     uint8_t* file_buffer,
     uint32_t* buffer_size,
     FILE* fp
@@ -833,51 +891,64 @@ int writeBlockToFile(
 {
     int s = 0;
 
-    uint8_t* buffer_ptr = NULL;
+    //uint8_t* buffer_ptr = NULL;
     size_t bytes_written;
-    uint8_t tmp_iv[AES_IV_SIZE];
+
+    uint8_t iv[AES_IV_SIZE];
+
+    uint8_t* iv_ptr = ( is_encrypted ) ? file_buffer : NULL;
+    size_t data_offset = ( is_encrypted ) ? AES_IV_SIZE : 0;
+    uint8_t* data_ptr = &file_buffer[data_offset];
+    uint32_t data_size = 0;
     
     DPrint("writeBlockToFile\n");
 
     // decrypt block buffer
     if ( is_encrypted )
     {
-        memcpy(tmp_iv, key_header->iv, AES_IV_SIZE);
-        rotate64Iv(tmp_iv, enc_part_i);
-        DPrint("iv: ");
-        DPrintMemCol8(tmp_iv, 0x10, 0);
+        memcpy(iv, iv_ptr, AES_IV_SIZE);
+        DPrint("iv:\n");
+        DPrintBytes(iv, AES_IV_SIZE);
+        
+        data_size = *buffer_size - AES_IV_SIZE;
+        DPrint("data:\n");
+        DPrintBytes(data_ptr, data_size);
 
-        buffer_ptr = (uint8_t*)(file_buffer);
-        s = decryptData(file_buffer, *buffer_size, &buffer_ptr, buffer_size, tmp_iv, AES_IV_SIZE);
+        s = decryptData(data_ptr, data_size, &data_ptr, buffer_size, iv, AES_IV_SIZE);
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Decrypting file data failed!\n");
-            sendAnswer(4, FS_ERROR_DECRYPT_FILE_DATA, *buffer_size, ClientSocket, is_encrypted, key_header);
+            EPrintP("\nDecrypting file data failed! (0x%x)\n", s);
+            sendAnswer(4, FS_ERROR_DECRYPT_FILE_DATA, *buffer_size, ClientSocket, is_encrypted);
             return s;
         }
         DPrint("  file decrypted\n");
+        data_size = *buffer_size;
+    }
+    else
+    {
+        data_size = *buffer_size;
     }
     DPrint("  buffer size: 0x%x\n", *buffer_size);
-            
+    
     // write file block
     errno = 0;
     //fseek(fp, offset, SEEK_SET);
-    bytes_written = fwrite(file_buffer, 1, *buffer_size, fp);
+    bytes_written = fwrite(data_ptr, 1, data_size, fp);
     s = errno;
 
-    if ( bytes_written != *buffer_size )
+    if ( bytes_written != data_size )
     {
-        EPrint(s, "Writing file failed.");
-        sendAnswer(2, FS_ERROR_WRITE_FILE, bytes_written, ClientSocket, is_encrypted, key_header);
-        if ( s== 0) s = -1;
+        EPrintP("Writing file failed! (0x%x)", s);
+        sendAnswer(2, FS_ERROR_WRITE_FILE, bytes_written, ClientSocket, is_encrypted);
+        if ( s == 0 )
+            s = -1;
         return s;
     }
     DPrint("  block written\n");
     DPrint("  sending answer\n");
 
     // send file-block-received answer
-    s = sendAnswer(2, FS_PACKET_SUCCESS, *buffer_size, ClientSocket, is_encrypted, key_header);
+    s = sendAnswer(2, FS_PACKET_SUCCESS, data_size, ClientSocket, is_encrypted);
     //if ( s != 0 )
     //{
     //    return s;

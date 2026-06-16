@@ -192,11 +192,11 @@ int __cdecl main(int argc, char* argv[])
     if ( key_path != NULL )
         printf("mode: encrypted\n");
     else
-        printf("mode: not encrypted\n");
+        printf("mode: plain\n");
 
     if ( flags & FLAG_SERVER )
     {
-        runServer(
+        s = runServer(
             argc,
             argv,
             start_i,
@@ -207,7 +207,7 @@ int __cdecl main(int argc, char* argv[])
     }
     else if ( flags & FLAG_CLIENT )
     {
-        runClient(
+        s = runClient(
             argc,
             argv,
             start_i,

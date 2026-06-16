@@ -107,7 +107,7 @@ int sha256BufferC(
  * @param   output char* The output hash string
  * @param   output_size uint16_t The outout buffer size. Should be at least hash_size*2 + 1.
  */
-void hashToString(
+int hashToString(
     const unsigned char* hash, 
     uint16_t hash_size, 
     char* output, 

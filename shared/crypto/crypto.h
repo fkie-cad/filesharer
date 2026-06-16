@@ -64,7 +64,7 @@ int generateAESKey(
 );
 
 /**
- * Encrypt AES secret and IV.
+ * Encrypt key header (aes secret) with RSA.
  */
 int encryptKey(
     uint8_t* plain,
@@ -74,7 +74,7 @@ int encryptKey(
 );
 
 /**
- * Decrypt AES secret and IV.
+ * Decrypt key header (aes secret) with RSA.
  */
 int decryptKey(
     uint8_t* encrypted,
@@ -83,6 +83,9 @@ int decryptKey(
     uint32_t* plain_ln
 );
 
+/**
+ * Encrypt file header or data with AES
+ */
 int encryptData(
     uint8_t* plain,
     uint32_t plain_ln,
@@ -92,6 +95,9 @@ int encryptData(
     uint32_t iv_ln
 );
 
+/**
+ * Decrypt file header or data with AES
+ */
 int decryptData(
     uint8_t* encrypted,
     uint32_t encrypted_ln,
@@ -104,9 +110,9 @@ int decryptData(
 int c_clean();
 
 
-int rotate64Iv(
-    uint8_t* iv, 
-    uint32_t id
-);
+//int rotate64Iv(
+//    uint8_t* iv, 
+//    uint32_t id
+//);
 
 #endif

@@ -142,7 +142,7 @@ size_t getBaseName(
         *base_name = NULL;
         return 0;
     }	
-    *base_name = &file_path[offset];
+    *base_name = (char*)&file_path[offset];
     return file_path_ln - offset;
 }
 
@@ -213,7 +213,7 @@ size_t getBaseNameOffset(
             return i + 1;
         }
 
-        if ( i > 1 )
+        if ( i > 0 )
             i--;
         else
             break;

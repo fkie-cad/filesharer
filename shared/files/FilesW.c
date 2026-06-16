@@ -187,9 +187,9 @@ int mkdir_r(const char* dir)
             if ( !s )
             {
                 errsv = GetLastError();
-                if (errsv != ERROR_ALREADY_EXISTS)
+                if ( errsv != ERROR_ALREADY_EXISTS )
                 {
-                    return errno;
+                    return errsv;
                 }
             }
 
@@ -203,7 +203,7 @@ int mkdir_r(const char* dir)
         errsv = GetLastError();
         if ( errsv != ERROR_ALREADY_EXISTS )
         {
-            return errno;
+            return errsv;
         }
     }
 

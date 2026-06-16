@@ -1,3 +1,4 @@
+
 #include "RSACNG.h"
 
 #include <winternl.h>
@@ -148,7 +149,8 @@ void printBcPrivBlob(BCRYPT_RSAKEY_BLOB* blob, ULONG blob_ln)
 
 NTSTATUS RSA_init(
     _Out_ PRSA_CTXT ctxt,
-    _In_ ULONG padding
+    _In_ ULONG padding,
+    _In_ PWCHAR padInfoAlgId
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
@@ -182,7 +184,6 @@ NTSTATUS RSA_init(
         // https://www.ietf.org/rfc/rfc3447.txt
         // https://www.rfc-editor.org/rfc/rfc3447#section-7.1.1
 
-        ctxt->padding = BCRYPT_PAD_OAEP; // fill and pass pad_info
         BCRYPT_OAEP_PADDING_INFO* pad_info = (BCRYPT_OAEP_PADDING_INFO*)ExAllocatePoolWithTag(ALLOC_POOL_TYPE, sizeof(BCRYPT_OAEP_PADDING_INFO), 'idap');
         if ( !pad_info )
         {
@@ -191,10 +192,11 @@ NTSTATUS RSA_init(
         }
         RtlZeroMemory(pad_info, sizeof(BCRYPT_OAEP_PADDING_INFO));
         // greater hash algorithms don't introduce more security on OAEP but shorten the possible message size
-        pad_info->pszAlgId = BCRYPT_SHA1_ALGORITHM;
+        pad_info->pszAlgId = padInfoAlgId;
         pad_info->pbLabel = NULL; // optional label to be associated with the message; the default value for L, if L is not provided, is the empty string
         pad_info->cbLabel = 0;
         ctxt->padding_info = pad_info;
+        ctxt->padding = BCRYPT_PAD_OAEP; // fill and pass pad_info
     }
     
 clean:
@@ -230,7 +232,7 @@ NTSTATUS RSA_pub_pemBlobToWcBlob(
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
-    BOOL b;
+    //BOOL b;
 
     *wc_blob = NULL;
     *wc_blob_ln = 0;
@@ -480,7 +482,10 @@ clean:
     if ( status != 0 )
     {
         if ( blobBuffer )
+        {
+            RtlSecureZeroMemory(blobBuffer, blob_ln);
             free(blobBuffer);
+        }
     }
 
     return status;
@@ -563,6 +568,7 @@ NTSTATUS RSA_priv_wcBlobToBcBlob(
 {
     NTSTATUS status = STATUS_SUCCESS;
     
+    ULONG blob_ln = 0;
     PUINT8 blobBuffer = NULL;
 
     *bc_blob = NULL;
@@ -599,7 +605,7 @@ NTSTATUS RSA_priv_wcBlobToBcBlob(
     
     ULONG modulus_bytes = wc_blob_pk->bitlen >> 3;
     ULONG prime_bytes = modulus_bytes >> 1;
-    ULONG blob_ln = (ULONG)sizeof(BCRYPT_RSAKEY_BLOB) + (ULONG)sizeof(wc_blob_pk->pubexp) + (modulus_bytes << 1); // modulus_bytes + 2*prime_bytes == 2 * modulus_bytes
+    blob_ln = (ULONG)sizeof(BCRYPT_RSAKEY_BLOB) + (ULONG)sizeof(wc_blob_pk->pubexp) + (modulus_bytes << 1); // modulus_bytes + 2*prime_bytes == 2 * modulus_bytes
     blobBuffer = (PUINT8)malloc(blob_ln);
     if ( blobBuffer == NULL )
     {
@@ -672,7 +678,10 @@ clean:
     if ( status != 0 )
     {
         if ( blobBuffer )
+        {
+            RtlSecureZeroMemory(blobBuffer, blob_ln);
             free(blobBuffer);
+        }
     }
 
     return status;
@@ -1176,7 +1185,10 @@ NTSTATUS RSA_exportPubKeyToBLOB(
 
 clean:
     if ( buffer != NULL )
+    {
+        RtlSecureZeroMemory(buffer, blob_ln);
         ExFreePool(buffer);
+    }
 
     return status;
 }
@@ -1232,7 +1244,7 @@ NTSTATUS RSA_importPrivKeyFromFile(
         // wc.blob = little endian
         DPrint("Converting der\n");
 
-        RSA_priv_derBlobToWcBlob(key_file_bytes, key_file_bytes_ln, &wc_blob, &wc_blob_ln);
+        status = RSA_priv_derBlobToWcBlob(key_file_bytes, key_file_bytes_ln, &wc_blob, &wc_blob_ln);
         if ( status != 0 )
         {
             EPrintP("RSA_priv_derBlobToWcBlob failed! (0x%x)\n", status);
@@ -1677,7 +1689,10 @@ NTSTATUS RSA_exportPrivKeyToBLOB(
 
 clean:
     if ( buffer != NULL )
+    {
+        RtlSecureZeroMemory(buffer, blob_ln);
         ExFreePool(buffer);
+    }
 
     return status;
 }
@@ -1866,7 +1881,7 @@ NTSTATUS RSA_signHash(
     //};
 
     // pss padding: resultLen = hashLen + saltLen + 2
-    if ( ctxt->keyStrength/8 < hash_ln + 2)
+    if ( ctxt->keyStrength < (hash_ln + 2)*8 )
         return STATUS_INVALID_PARAMETER;
     
     ULONG flags = BCRYPT_PAD_PSS;
@@ -2239,7 +2254,7 @@ NTSTATUS writeFileBytes(
 
     HANDLE file = NULL;
     PWCHAR wpath = NULL;
-    SIZE_T wpath_cb = MAX_PATH*2;
+    SIZE_T wpath_cb = MAX_PATH*2 + 4;
     OBJECT_ATTRIBUTES objAttr;
     IO_STATUS_BLOCK iosb;
     UNICODE_STRING uc_path;

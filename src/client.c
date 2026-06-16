@@ -71,9 +71,7 @@ int loadBlockIntoBuffer(
     uint8_t* buffer, 
     uint32_t read_size, 
     uint32_t buffer_size, 
-    uint8_t* iv, 
-    bool is_encrypted, 
-    uint32_t enc_part_i
+    bool is_encrypted
 );
 
 int sendDir(
@@ -91,8 +89,7 @@ void fileCB(
 bool receiveAnswer(
     PFsAnswer answer, 
     SOCKET sock, 
-    bool is_encrypted, 
-    FsKeyHeader* key_header
+    bool is_encrypted
 );
 
 
@@ -110,7 +107,7 @@ int runClient(
     FEnter();
     
     bool s = 0;
-    bool cb = 0;
+    size_t cb = 0;
 
     int nr_of_files;
     int i;
@@ -168,11 +165,11 @@ int runClient(
             argv[i][MAX_PATH - 1] = 0;
         
         memset(path, 0, MAX_PATH);
-        cb = (int)getFullPathName(argv[i], MAX_PATH, path, &base_name);
+        cb = getFullPathName(argv[i], MAX_PATH, path, &base_name);
         if ( !cb )
         {
             s = getLastError();
-            EPrint(s, "Get full path failed.\n");
+            EPrintP("Get full path failed! (0x%x)\n", s);
             break;
         }
         cropTrailingSlash(path);
@@ -184,7 +181,7 @@ int runClient(
         else if ( dirExists(path) )
             sendDir(path, sock, flags);
         else {
-            EPrint(-1, "Path \"%s\" does not exist!\n", path); }
+            EPrintP("Path \"%s\" does not exist! (0x%x)\n", path, -1); }
 //        if ( !s )
 //            break;
     }
@@ -211,6 +208,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     bool is_encrypted = IS_ENCRYPTED(flags);
     uint32_t header_size;
     size_t buffer_size;
+    size_t send_size;
     int errsv;
     int s;
 
@@ -230,6 +228,11 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     uint32_t sb_offset;
 
     uint8_t hash[SHA256_BYTES_LN];
+    uint8_t iv[AES_IV_SIZE];
+
+    uint32_t gBuffer_file_header_offset = 0;
+    uint8_t* gBuffer_file_header_ptr = NULL;
+    uint32_t gBuffer_rest_size = BUFFER_SIZE;
 
     printf("send: %s\n", file_path);
     
@@ -243,8 +246,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
         s = sha256File(file_path, hash, SHA256_BYTES_LN);
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Calculating hash failed!\n");
+            EPrintP("Calculating hash failed! (0x%x)\n", s);
             goto exit;
         }
         printf("\r");
@@ -265,21 +267,21 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
 
 
     //
-    // send RSA encrypted AES secret and IV
+    // send RSA encrypted key header (AES secret)
 
     if ( is_encrypted )
     {
         s = saveFsKeyHeader(&key_header);
         if ( s != 0 )
         {
-            EPrint(s, "saveFsKeyHeader failed!\n");
+            EPrintP("saveFsKeyHeader failed! (0x%x)\n", s);
             goto exit;
         }
 
         s = generateAESKey(key_header.secret, AES_SECRET_SIZE);
         if ( s != 0 )
         {
-            EPrint(s, "Generating AES key failed!\n");
+            EPrintP("Generating AES key failed! (0x%x)\n", s);
             goto exit;
         }
 
@@ -298,7 +300,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
         );
         if ( s != 0 )
         {
-            EPrint(s, "Encrypting key header failed!\n");
+            EPrintP("Encrypting key header failed! (0x%x)\n", s);
             goto exit;
         }
         DPrint("encrypted key header\n");
@@ -308,15 +310,15 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
         if ( bytes_sent < 0 )
         {
             errsv = getLastSError();
-            EPrint(errsv, "Send header failed.\n");
+            EPrintP("Send header failed! (0x%x)\n", errsv);
             s = -1;
             goto exit;
         }
-        DPrint("bytes sent 0x%x\n", (int)bytes_sent);
+        DPrint("Bytes sent 0x%x\n", (int)bytes_sent);
         DPrint("Waiting for answer.\n");
 
         // Wait for key-header-received answer from server to keep it separated
-        s = receiveAnswer(&answer, sock, is_encrypted, &key_header);
+        s = receiveAnswer(&answer, sock, is_encrypted);
         if ( s != 0 )
         {
             goto exit;
@@ -327,10 +329,14 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     
     if ( is_encrypted )
     {
-        enc_data_max_size = enc_block_buffer_size - AES_STD_BLOCK_SIZE; // -AES_STD_BLOCK_SIZE for padding
+        enc_data_max_size = enc_block_buffer_size - AES_STD_BLOCK_SIZE - AES_IV_SIZE; // -AES_STD_BLOCK_SIZE for padding
         enc_parts = (uint32_t)(file_header.file_size / enc_data_max_size);
         enc_rest = (uint32_t)(file_header.file_size % enc_data_max_size);
-        enc_file_size = ( enc_parts * (size_t)enc_block_buffer_size ) + GET_ENC_AES_SIZE(enc_rest);
+        enc_file_size = ( enc_parts * (size_t)enc_block_buffer_size ) + GET_ENC_AES_SIZE(enc_rest) + AES_IV_SIZE;
+
+        gBuffer_file_header_offset = AES_IV_SIZE;
+        gBuffer_file_header_ptr = &gBuffer[gBuffer_file_header_offset];
+        gBuffer_rest_size -= AES_IV_SIZE;
     }
     else
     {
@@ -338,35 +344,48 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
         enc_parts = (uint32_t)(file_header.file_size / enc_data_max_size);
         enc_rest = (uint32_t)(file_header.file_size % enc_data_max_size);
         enc_file_size = file_header.file_size;
+        
+        gBuffer_file_header_ptr = &gBuffer[0];
+        //gBuffer_file_header_offset = 0;
+        //gBuffer_rest_size = BUFFER_SIZE;
     }
 
     DPrint("enc_data_max_size: 0x%x\n", enc_data_max_size);
     DPrint("enc_file_size: 0x%zx\n", enc_file_size);
     DPrint("enc_parts: 0x%x\n", enc_parts);
     DPrint("enc_rest: 0x%x\n", enc_rest);
+    DPrint("gBuffer_rest_size: 0x%x\n", gBuffer_rest_size);
+    DPrint("gBuffer_file_header_offset: 0x%x\n", gBuffer_file_header_offset);
+    DPrint("gBuffer_file_header_ptr: %p\n", gBuffer_file_header_ptr);
 
     //
     // send file header
 
-
-    // fill file header
-    s = generateRand(file_header.garbage, AES_IV_SIZE);
-    if ( s != 0 )
+    if ( is_encrypted )
     {
-        EPrintNl();
-        EPrint(s, "Generating Garbage failed!\n");
-        goto exit;
+        //
+        // generate iv for file header
+
+        s = generateIV(iv, AES_IV_SIZE);
+        if ( s != 0 )
+        {
+            EPrintP("Generating IV failed! (0x%x)\n", s);
+            goto exit;
+        }
+        // prefix data with iv
+        memcpy(gBuffer, iv, AES_IV_SIZE);
     }
+    // fill file header
     file_header.parts_block_size = enc_block_buffer_size;
     file_header.parts_count = enc_parts;
-    file_header.parts_rest = ( is_encrypted ) ? GET_ENC_AES_SIZE(enc_rest) : enc_rest;
+    file_header.parts_rest = ( is_encrypted ) ? GET_ENC_AES_SIZE(enc_rest) + AES_IV_SIZE : enc_rest;
     file_header.hash_ln = (flags&FLAG_CHECK_FILE_HASH) ? SHA256_BYTES_LN : 0;
     file_header.hash = (flags&FLAG_CHECK_FILE_HASH) ? hash : NULL;
     file_header.base_name_ln = (uint16_t)strlen(base_name);
     file_header.sub_dir_ln = sd_ln;
     file_header.sub_dir = &file_path[sd_id];
     file_header.base_name = (char*)base_name;
-    header_size = (uint32_t)saveFsFileHeader(gBuffer, &file_header);
+    header_size = (uint32_t)saveFsFileHeader(gBuffer_file_header_ptr, gBuffer_rest_size, &file_header);
     printf("header (0x%x):                \n", header_size);
     printFsFileHeader(&file_header, " - ");
     
@@ -374,38 +393,39 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     if ( is_encrypted )
     {
         DPrint("file header\n");
-        DPrintMemCol8(gBuffer, header_size, 0);
+        DPrintMemCol8(gBuffer_file_header_ptr, header_size, 0);
 
-        buffer_size = BUFFER_SIZE;
-        buffer_ptr = (uint8_t*)gBuffer;
+        buffer_size = gBuffer_rest_size;
+        //buffer_ptr = gBuffer_file_header_ptr;
         s = encryptData(
-            gBuffer, 
+            gBuffer_file_header_ptr, 
             header_size, 
-            &buffer_ptr, 
+            &gBuffer_file_header_ptr, 
             (uint32_t*)&buffer_size, 
-            key_header.iv, 
+            iv, 
             AES_IV_SIZE
         );
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Encrypting file header failed!\n");
+            EPrintP("\nEncrypting file header failed! (0x%x)\n", s);
             goto exit;
         }
         DPrint("encrypted file header (0x%zx)\n", buffer_size);
-        DPrintMemCol8(gBuffer, (uint32_t)buffer_size, 0);
+        DPrintMemCol8(gBuffer_file_header_ptr, (uint32_t)buffer_size, 0);
+        send_size = AES_IV_SIZE + buffer_size;
     }
     else
     {
-        buffer_size = header_size;
+        send_size = header_size;
     }
     
     DPrint("header_size: 0x%x\n", header_size);
-    bytes_sent = send(sock, (char*)gBuffer, (int)buffer_size, 0);
-    if (bytes_sent < 0)
+    DPrint("send_size: 0x%zx\n", send_size);
+    bytes_sent = send(sock, (char*)gBuffer, (int)send_size, 0);
+    if ( bytes_sent < 0 )
     {
         errsv = getLastSError();
-        EPrint(errsv, "Send header failed.\n");
+        EPrintP("Send header failed! (0x%x)\n", errsv);
         s = -1;
         goto exit;
     }
@@ -413,7 +433,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     DPrint("Waiting for answer.\n");
 
     // Wait for header-received answer from server to keep it separated from file
-    s = receiveAnswer(&answer, sock, is_encrypted, &key_header);
+    s = receiveAnswer(&answer, sock, is_encrypted);
     if ( s != 0 )
     {
         goto exit;
@@ -423,18 +443,17 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
 
 
 
-    
     //
     // send file parts
 
     // create file buffer
     buffer_size = (file_header.file_size > enc_data_max_size) 
                     ? enc_block_buffer_size 
-                    : GET_ENC_AES_SIZE(file_header.file_size);
+                    : GET_ENC_AES_SIZE(file_header.file_size) + AES_IV_SIZE;
     file_buffer = (uint8_t*)malloc(buffer_size);
     if ( file_buffer == NULL )
     {
-        EPrint(getLastError(), "malloc file_buffer failed\n");
+        EPrintP("malloc file_buffer failed! (0x%x)\n", getLastError());
         s = -1;
         goto exit;
     }
@@ -447,7 +466,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     errsv = errno;
     if ( file == NULL )
     {
-        EPrint(errsv, "Can't open file \"%s\".\n", file_path);
+        EPrintP("Can't open file \"%s\"! (0x%x)\n", file_path, errsv);
         s = -2;
         goto exit;
     }
@@ -465,14 +484,14 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
         DPrint("block: 0x%x\n", enc_part_i);
         DPrint("file_offset: 0x%zx\n", file_offset);
         
-        s = loadBlockIntoBuffer(file, file_offset, file_buffer, enc_data_max_size, (uint32_t)buffer_size, key_header.iv, is_encrypted, enc_part_i);
+        s = loadBlockIntoBuffer(file, file_offset, file_buffer, enc_data_max_size, (uint32_t)buffer_size, is_encrypted);
         if ( s != 0 )
         {
             s = -3;
             goto exit;
         }
 
-        // send encryrpted block in network chunks of BUFFER_SIZE
+        // send encrypted block in network chunks of BUFFER_SIZE
         send_parts_count = (uint32_t)(buffer_size / BUFFER_SIZE);
         send_parts_rest = (uint32_t)(buffer_size % BUFFER_SIZE);
         sb_offset = 0;
@@ -497,7 +516,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     
         DPrint("waiting for part 0x%x received answer.\n", enc_part_i);
         // Wait for enc_block-received answer from server
-        s = receiveAnswer(&answer, sock, is_encrypted, &key_header);
+        s = receiveAnswer(&answer, sock, is_encrypted);
         if ( s != 0 )
         {
             goto exit;
@@ -509,17 +528,17 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
     {
         DPrint("rest\n");
         DPrint("file_offset: 0x%zx\n", file_offset);
-
-        s = loadBlockIntoBuffer(file, file_offset, file_buffer, enc_rest, (uint32_t)buffer_size, key_header.iv, is_encrypted, enc_part_i);
+        
+        s = loadBlockIntoBuffer(file, file_offset, file_buffer, enc_rest, (uint32_t)buffer_size, is_encrypted);
         if ( s != 0 )
         {
             goto exit;
         }
-
+        
         if ( is_encrypted )
-            enc_rest = GET_ENC_AES_SIZE(enc_rest);
-
-        // send encryrpted block in network chunks of BUFFER_SIZE
+            enc_rest = GET_ENC_AES_SIZE(enc_rest) + AES_IV_SIZE;
+        
+        // send encrypted block in network chunks of BUFFER_SIZE
         send_parts_count = (uint32_t)(enc_rest / BUFFER_SIZE);
         send_parts_rest = (uint32_t)(enc_rest % BUFFER_SIZE);
         sb_offset = 0;
@@ -532,7 +551,7 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
             }
             sb_offset += BUFFER_SIZE;
         }
-                
+        
         if ( send_parts_rest != 0 )
         {
             s = sendBytes(sock, &file_buffer[sb_offset], &file_bytes_sent, send_parts_rest, enc_file_size);
@@ -541,22 +560,22 @@ int sendFile(const char* file_path, const char* base_name, uint16_t sd_id, uint1
                 goto exit;
             }
         }
-    
+        
         // Wait for enc_block-received answer from server
         DPrint("waiting for rest received answer.\n");
-        s = receiveAnswer(&answer, sock, is_encrypted, &key_header);
+        s = receiveAnswer(&answer, sock, is_encrypted);
         if ( s != 0 )
         {
             goto exit;
         }
     }
-
-
+    
+    
     // does not work, if block answer is sent without intermediate wait for other sides's response,
     // because the two answers (block answer, and fully-received answer) might be buffered and sent at once.
 //    // wait for file-fully-received answer
 //    DPrint("waiting for fully received answer.\n");
-//    s = receiveAnswer(&answer, sock, is_encrypted, &key_header);
+//    s = receiveAnswer(&answer, sock, is_encrypted);
 //    if ( s != 0 )
 //    {
 //        goto exit;
@@ -581,13 +600,15 @@ exit:
 
 int sendBytes(SOCKET sock, uint8_t* buffer, size_t* data_bytes_sent, uint32_t bytes_size, size_t data_full_size)
 {
+    FEnter();
     sendlen_t bytes_sent;
     uint32_t pc;
 
     bytes_sent = send(sock, (char*)buffer, bytes_size, 0);
     if ( bytes_sent <= 0 || (uint32_t)bytes_sent != bytes_size )
     {
-        EPrint(getLastSError(), "Send file bytes failed.\n");
+        EPrintP("Send file bytes failed! (0x%x)\n", getLastSError());
+        FLeave();
         return -1;
     }
 
@@ -599,28 +620,41 @@ int sendBytes(SOCKET sock, uint8_t* buffer, size_t* data_bytes_sent, uint32_t by
     printf("Bytes sent: 0x%zx/0x%zx (%u%%).\r", *data_bytes_sent, (size_t)data_full_size, pc);
 #endif
 
+    FLeave();
     return 0;
 }
 
-// don't reuse IV
-int loadBlockIntoBuffer(FILE* file, size_t offset, uint8_t* buffer, uint32_t read_size, uint32_t buffer_size, uint8_t* iv, bool is_encrypted, uint32_t enc_part_i)
+int loadBlockIntoBuffer(FILE* file, size_t offset, uint8_t* buffer, uint32_t read_size, uint32_t buffer_size, bool is_encrypted)
 {
+    FEnter();
     int errsv;
     size_t bytes_read;
     int s = 0;
-    uint8_t tmp_iv[AES_IV_SIZE];
+    uint8_t iv[AES_IV_SIZE];
+
+    size_t data_offset = (is_encrypted) ? AES_IV_SIZE : 0;
+    uint8_t* data_ptr = (is_encrypted) ? &buffer[data_offset] : buffer;
+    uint32_t buffer_rest_size = (is_encrypted) ? buffer_size - AES_IV_SIZE : buffer_size;
     
+    DPrint("file: %p\n", file);
+    DPrint("offset: 0x%zx\n", offset);
+    DPrint("buffer: %p\n", buffer);
+    DPrint("read_size: 0x%x\n", read_size);
+    DPrint("buffer_size: 0x%x\n", buffer_size);
+    DPrint("is_encrypted: 0x%x\n", is_encrypted);
+    DPrint("buffer_rest_size: 0x%x\n", buffer_rest_size);
+
     memset(buffer, 0, buffer_size);
 
     errno = 0;
     fseek(file, offset, SEEK_SET);
-    bytes_read = fread(buffer, 1, read_size, file);
+    bytes_read = fread(data_ptr, 1, read_size, file);
     errsv = errno;
-    DPrint("bytes_read: 0x%x\n", bytes_read);
+    DPrint("bytes_read: 0x%zx\n", bytes_read);
     DPrint("read_size: 0x%x\n", read_size);
     if ( bytes_read != read_size || errsv != 0 )
     {
-        EPrint(errsv, "Read file bytes failed.\n");
+        EPrintP("Read file bytes failed! (0x%x)\n", errsv);
         s = ( errsv == 0 ) ? -1 : errsv;
         goto clean;
     }
@@ -628,32 +662,42 @@ int loadBlockIntoBuffer(FILE* file, size_t offset, uint8_t* buffer, uint32_t rea
     // encrypt data block
     if ( is_encrypted )
     {
-        memcpy(tmp_iv, iv, AES_IV_SIZE);
-        rotate64Iv(tmp_iv, enc_part_i);
-#ifdef DEBUG_PRINT
-        DPrint("iv: ");
-        for ( int x=0;x<0x10;x++ )
-            printf("%02x ", tmp_iv[x]);
-        printf("\n");
-#endif
+        s = generateIV(iv, AES_IV_SIZE);
+        if ( s != 0 )
+        {
+            EPrintP("Generating IV failed! (0x%x)\n", s);
+            goto clean;
+        }
+        // prefix data with iv
+        memcpy(buffer, iv, AES_IV_SIZE);
+
+        DPrint("iv: %p\n", buffer);
+        DPrintBytes(iv, AES_IV_SIZE);
+
+        DPrint("data: %p\n", data_ptr);
+        DPrintBytes(data_ptr, read_size);
+
         s = encryptData(
-            buffer, 
+            data_ptr, 
             (uint32_t)read_size, 
-            &buffer, 
-            &buffer_size, 
-            tmp_iv, 
+            &data_ptr, 
+            &buffer_rest_size, 
+            iv, 
             AES_IV_SIZE
         );
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Encrypting file data failed!\n");
+            EPrintP("\nEncrypting file data failed! (0x%x)\n", s);
             goto clean;
         }
+        DPrint("enc size: 0x%x\n", buffer_rest_size);
+        DPrint("enc data: %p\n", data_ptr);
+        DPrintBytes(data_ptr, buffer_rest_size);
     }
 
 clean:
 
+    FLeave();
     return s;
 }
 
@@ -675,7 +719,7 @@ int sendDir(const char* dir_path, SOCKET sock, uint16_t flags)
     uint32_t act_flags = 0;
     if ( flags&FLAG_RECURSIVE )
         act_flags |= FILES_FLAG_RECURSIVE;
-    DPrint(" - act_flags: %d\n", act_flags);
+    DPrint(" - act_flags: %u\n", act_flags);
     actOnFilesInDir(dir_path, &fileCB, NULL, act_flags, &params, &(params.killed));
 
     return s;
@@ -718,55 +762,86 @@ void fileCB(char* file, char* base_name, void* p)
 //        params->killed = true;
 }
 
-int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted, FsKeyHeader* key_header)
+int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted)
 {
     memset(gBuffer, 0, BUFFER_SIZE);
     memset(answer, 0, sizeof(*answer));
-    reclen_t bytes_rec;
-    bytes_rec = recv(sock, (char*)gBuffer, BUFFER_SIZE, 0);
-    if ( bytes_rec == SOCKET_ERROR )
+    
+    reclen_t bytes_recv;
+    bytes_recv = recv(sock, (char*)gBuffer, BUFFER_SIZE, 0);
+    if ( bytes_recv == SOCKET_ERROR )
     {
-        EPrintNl();
-        EPrint(getLastSError(), "receiving answer failed!\n");
+        EPrintP("\nReceiving answer failed! (0x%x)\n", getLastSError());
         return -1;
     }
-    DPrint("received bytes: 0x%x\n", (int)bytes_rec);
+    DPrint("received bytes: 0x%x\n", (int)bytes_recv);
    
     uint32_t buffer_size;
-    uint8_t* buffer_ptr = (uint8_t*)gBuffer;
+    uint8_t* answer_ptr = NULL;
+    uint32_t answer_size =0;
     int s;
 
     if ( is_encrypted )
     {
-//        printFsKeyHeader(key_header, " - ");
-        DPrint("encrypted buffer\n");
-        DPrintMemCol8(gBuffer, (uint32_t)bytes_rec, 0);
+        //
+        // [0:f] iv
+        // [10:] answer
+        //
+
+        if ( bytes_recv < AES_IV_SIZE + FS_ANSWER_SEND_SIZE )
+        {
+            EPrintP("Received 0x%x answer to short! Expected 0x%x bytes! (0x%x)\n", bytes_recv, (AES_IV_SIZE + FS_ANSWER_SEND_SIZE), -1);
+            return -1;
+        }
+
+        // calculate answer size and point to it
+        answer_size = bytes_recv - AES_IV_SIZE;
+        answer_ptr = (uint8_t*)&gBuffer[AES_IV_SIZE];
+
+        // get iv
+        uint8_t iv[AES_IV_SIZE];
+        memcpy(iv, gBuffer, AES_IV_SIZE);
+        DPrint("iv\n");
+        DPrintMemCol8(iv, AES_IV_SIZE, 0);
+        
+        DPrint("encrypted answer\n");
+        DPrintMemCol8(answer_ptr, answer_size, 0);
 
         buffer_size = BUFFER_SIZE;
-        s = decryptData(gBuffer, bytes_rec, &buffer_ptr, &buffer_size, key_header->iv, AES_IV_SIZE);
+        s = decryptData(answer_ptr, answer_size, &answer_ptr, &answer_size, iv, AES_IV_SIZE);
         if ( s != 0 )
         {
-            EPrintNl();
-            EPrint(s, "Decrypting answer failed!\n");
+            EPrintP("\nDecrypting answer failed! (0x%x)\n", s);
             return -2;
         }
         DPrint("decrypted buffer\n");
-        DPrintMemCol8(buffer_ptr, buffer_size, 0);
+        DPrintMemCol8(answer_ptr, answer_size, 0);
     }
     else
     {
-        buffer_size = bytes_rec;
+        //
+        // [:] answer
+        //
+
+        if ( bytes_recv < FS_ANSWER_SEND_SIZE )
+        {
+            EPrintP("Received 0x%x answer to short! Expected 0x%x bytes! (0x%x)\n", bytes_recv, FS_ANSWER_SEND_SIZE, -1);
+            return -1;
+        }
+
+        answer_ptr = (uint8_t*)gBuffer;
+        answer_size = bytes_recv;
     }
 
-    s = loadFsAnswer(gBuffer, buffer_size, answer);
+    s = loadFsAnswer(answer_ptr, answer_size, answer);
     if ( s != 0 )
     {
-        EPrint(-1, "Loading answer failed.\n");
+        EPrintP("Loading answer failed! (0x%x)\n", -1);
         return s;
     }
     if ( answer->type != FS_TYPE_ANSWER)
     {
-        EPrint(-1, "Expected Answer, got 0x%"PRIx64".\n", answer->type);
+        EPrintP("Expected answer, got 0x%"PRIx64"! (0x%x)\n", answer->type, -1);
         return -3;
     }
 

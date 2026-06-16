@@ -1,10 +1,6 @@
 # TCP Fileshare Client and Server
 Cross Os (Linux/Windows) fileshare client and server with optional encryption.
 
-Warning: 
-This tool at some stages has been flagged as a positive threat by Windows Defender for unknown reasons. 
-If this happens, drop this tool in an "exclusion" folder.
-
 Compiles and runs under
 - Linux 
 - Windows (x86/x64)  
@@ -12,8 +8,8 @@ Compiles and runs under
 
 
 ## Version
-1.4.5  
-Last changed: 12.08.2025
+1.4.6  
+Last changed: 16.06.2026
 
 
 ## Requirements
@@ -34,8 +30,7 @@ Last changed: 12.08.2025
 $ winBuild.bat [/app] [/m <Release|Debug>] [/b <32|64>] [/rtl] [/pdb] [/bt <path>] [/pts <PlatformToolset>] [/h]
 ```
 
-The PlatformToolset defaults to "v143" but may be changed with the `/pts` option.
-"v142" is used for VS 2019, "v143" would be used in VS 2022.
+The PlatformToolset defaults to "v145" but may be changed with the `/pts` option.
 
 
 ### Runtime Errors (Windows)
@@ -128,8 +123,8 @@ The upper limit comes due to the MS BCrypt API limit, that expects a ULONG (32-b
 
 ## Encryption
 Encryption is done by RSA (OAEP padding) and AES256 in CBC mode.
-An AES secret and IV as randomly created for each file.
-The AES secret and IV is encrypted with the public RSA key and sent to the server.
+An AES secret is randomly created for each file.
+The AES secret is encrypted with the public RSA key and sent to the server.
 Then the file header and data is sent over encrypted with the AES key.
 The client has to use a public RSA (Windows: .der, Linux: .pem) key to which the server owns the corresponding private (Windows: .der, Linux: .pem) key.
 The communication partners have to know each other's keys beforehand and obviously both of them have to provide a key or none of them.
@@ -138,18 +133,13 @@ There is no key exchange happening like e.g. in TLS.
 Currently, the private key has to be stored unencrypted as a file on the server system.  
 On Windows it has to be in `.der` format, on Linux in `.pem` Format.
 
-For each file a new AES key and IV is created.
-On the other hand, there is only one IV created but used for sending the file header, the data and the answers.
-To ensure security, an AES block sized random buffer is added to the file header and the answers so that the IV is not consumed before sending the data.  
-This may be changed, if a better solution is found.
-
-Files are sent in chunks of 0x100000 (or whatever the `-s` option is set to) byte blocks. 
-For each block, the IV is rotated, so it should be different for each block.
+For each file a new AES key is created.
 
 
 ## Integrity
 The file data itself is checked by its sha256 hash. 
 Integrity checks and server authentication for the headers and maybe the answers as well will be added in future versions when RSA signing is got to work correctly on Windows.
+AES in GCM mode is planned.
 
 
 ## Create keys
@@ -167,6 +157,3 @@ Feel free to open an issue.
 ## COPYRIGHT, CREDITS & CONTACT
 Published under [GNU GENERAL PUBLIC LICENSE](LICENSE).
 
-
-### Author
-- Henning Braun ([henning.braun@fkie.fraunhofer.de](henning.braun@fkie.fraunhofer.de)) 

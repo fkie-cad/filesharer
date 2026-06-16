@@ -17,13 +17,17 @@
 #include "crypto/crypto.h"
 
 //#define FS_KEY_HEADER_BUFFER_SIZE (AES_SECRET_SIZE + AES_IV_SIZE)
-#define FS_KEY_HEADER_SIZE (AES_SECRET_SIZE + AES_IV_SIZE + 0x8)
 
 #define FS_TYPE_KEY_HEADER (0x000056492B59454B)
 #define FS_TYPE_FILE_HEADER (0x4F464E49454C4946)
 #define FS_TYPE_SIG_HEADER (0x525554414E474953)
 #define FS_TYPE_ANSWER (0x0000524557534E41)
 
+//
+// RSA encrypted key header.
+// Includes type and AES secret.
+// AES secret is used for forther header and data encryption.
+//
 
 // prevent padding
 #if defined(_WIN32)
@@ -32,7 +36,6 @@
 typedef struct FsKeyHeader {
     uint64_t type;
     uint8_t secret[AES_SECRET_SIZE];
-    uint8_t iv[AES_IV_SIZE];
 }
 #ifdef _LINUX
 __attribute__ ((__packed__))
@@ -42,33 +45,34 @@ FsKeyHeader, * PFsKeyHeader
 #if defined(_WIN32)
 #pragma pack()
 #endif
+#define FS_KEY_HEADER_SIZE (AES_SECRET_SIZE + 0x8)
 
 typedef struct FsKeyHeaderOffsets {
     uint16_t secret;
-    uint16_t iv;
     uint16_t type;
 } FsKeyHeaderOffsets, * PFsKeyHeaderOffsets;
 extern FsKeyHeaderOffsets fs_key_header_offsets;
 
-// add initial random garbage to reuse IV
-// could be sha256 and then checked
 typedef struct FsFileHeader {
-    uint8_t garbage[AES_IV_SIZE];
-    uint64_t type;
-    size_t file_size;
-    uint32_t parts_block_size;
-    uint32_t parts_count;
-    uint32_t parts_rest;
-    uint16_t base_name_ln;
-    uint16_t sub_dir_ln;
-    uint16_t hash_ln;
-    const char* sub_dir;
+    uint64_t type; // 00 | 00
+    size_t file_size; // 08 | 08
+    uint32_t parts_block_size; // 0C | 10 
+    uint32_t parts_count; // 10 | 14
+    uint32_t parts_rest; // 14 | 18
+    uint16_t base_name_ln; // 18 | 1C
+    uint16_t sub_dir_ln; // 1A | 1E
+    uint16_t hash_ln; // 1C | 20
+    const char* sub_dir; // 1E | 22
     const char* base_name;
     uint8_t* hash;
 } FsFileHeader, * PFsFileHeader;
+#if defined(_64BIT)
+#define FS_FILE_HEADER_MIN_SIZE (20)
+#else
+#define FS_FILE_HEADER_MIN_SIZE (1E)
+#endif
 
 typedef struct FsFileHeaderOffsets {
-    uint16_t garbage;
     uint16_t type;
     uint16_t file_size;
     uint16_t parts_block_size;
@@ -83,13 +87,11 @@ typedef struct FsFileHeaderOffsets {
 } FsFileHeaderOffsets, * PFsHeaderOffsets;
 
 typedef struct FsSigHeader {
-    uint8_t garbage[AES_IV_SIZE];
     uint64_t type;
     uint8_t* sig;
 } FsSigHeader, * PFsSigHeader;
 
 typedef struct FsSigHeaderOffsets {
-    uint8_t garbage;
     uint16_t type;
     uint8_t sig;
 } FsSigHeaderOffsets, * PFsSigHeaderOffsets;
@@ -109,11 +111,13 @@ void printFsKeyHeader(
 
 size_t saveFsFileHeader(
     uint8_t* buffer, 
+    uint32_t buffer_size,
     PFsFileHeader h
 );
 
-void loadFsFileHeader(
+int loadFsFileHeader(
     uint8_t* buffer, 
+    size_t buffer_size,
     PFsFileHeader h, 
     char* base_name, 
     uint16_t base_name_size, 
@@ -132,10 +136,7 @@ void printFsFileHeader(
 
 
 
-// add initial random garbage to reuse IV
-// could be sha256 and the checked
 typedef struct FsAnswer {
-    uint8_t garbage[AES_IV_SIZE]; // random garbage
     uint64_t type;
     size_t info;
     uint32_t code;
@@ -143,7 +144,6 @@ typedef struct FsAnswer {
 } FsAnswer, * PFsAnswer;
 
 typedef struct FsAnswerOffsets {
-    uint8_t garbage;
     uint16_t type;
     uint8_t info;
     uint8_t code;
