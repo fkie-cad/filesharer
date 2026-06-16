@@ -636,7 +636,7 @@ int loadBlockIntoBuffer(FILE* file, size_t offset, uint8_t* buffer, uint32_t rea
     uint8_t* data_ptr = (is_encrypted) ? &buffer[data_offset] : buffer;
     uint32_t buffer_rest_size = (is_encrypted) ? buffer_size - AES_IV_SIZE : buffer_size;
     
-    DPrint("file: %p\n", file);
+    DPrint("file: %p\n", (void*)file);
     DPrint("offset: 0x%zx\n", offset);
     DPrint("buffer: %p\n", buffer);
     DPrint("read_size: 0x%x\n", read_size);
@@ -767,8 +767,7 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted)
     memset(gBuffer, 0, BUFFER_SIZE);
     memset(answer, 0, sizeof(*answer));
     
-    reclen_t bytes_recv;
-    bytes_recv = recv(sock, (char*)gBuffer, BUFFER_SIZE, 0);
+    reclen_t bytes_recv = recv(sock, (char*)gBuffer, BUFFER_SIZE, 0);
     if ( bytes_recv == SOCKET_ERROR )
     {
         EPrintP("\nReceiving answer failed! (0x%x)\n", getLastSError());
@@ -790,7 +789,7 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted)
 
         if ( bytes_recv < AES_IV_SIZE + FS_ANSWER_SEND_SIZE )
         {
-            EPrintP("Received 0x%x answer to short! Expected 0x%x bytes! (0x%x)\n", bytes_recv, (AES_IV_SIZE + FS_ANSWER_SEND_SIZE), -1);
+            EPrintP("Received 0x%x answer to short! Expected 0x%x bytes! (0x%x)\n", (uint32_t)bytes_recv, (AES_IV_SIZE + FS_ANSWER_SEND_SIZE), -1);
             return -1;
         }
 
@@ -825,7 +824,7 @@ int receiveAnswer(PFsAnswer answer, SOCKET sock, bool is_encrypted)
 
         if ( bytes_recv < FS_ANSWER_SEND_SIZE )
         {
-            EPrintP("Received 0x%x answer to short! Expected 0x%x bytes! (0x%x)\n", bytes_recv, FS_ANSWER_SEND_SIZE, -1);
+            EPrintP("Received 0x%x answer to short! Expected 0x%x bytes! (0x%x)\n", (uint32_t)bytes_recv, FS_ANSWER_SEND_SIZE, -1);
             return -1;
         }
 

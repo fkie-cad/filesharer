@@ -87,7 +87,8 @@ size_t saveFsFileHeader(
     size_t offset = 0;
     memset(buffer, 0, BUFFER_SIZE);
 
-    if ( fs_f_header_offsets.sub_dir + h->sub_dir_ln + h->base_name_ln + h->hash_ln > buffer_size )
+    size_t recv_size = fs_f_header_offsets.sub_dir + h->sub_dir_ln + h->base_name_ln + h->hash_ln;
+    if ( recv_size > buffer_size )
     {
 #ifdef ERROR_PRINT
         printf("ERROR: Header to big for predefined buffer!\n");
@@ -139,8 +140,10 @@ int loadFsFileHeader(
     DPrint("minsize1: 0x%x\n", (fs_f_header_offsets.sub_dir));
     if ( buffer_size < fs_f_header_offsets.sub_dir )
         return -1;
-    DPrint("minsize2: 0x%x\n", (fs_f_header_offsets.sub_dir + *(uint16_t*)&buffer[fs_f_header_offsets.sub_dir_ln] + *(uint16_t*)&buffer[fs_f_header_offsets.base_name_ln] + *(uint16_t*)&buffer[fs_f_header_offsets.hash_ln]));
-    if ( buffer_size < fs_f_header_offsets.sub_dir + *(uint16_t*)&buffer[fs_f_header_offsets.sub_dir_ln] + *(uint16_t*)&buffer[fs_f_header_offsets.base_name_ln] + *(uint16_t*)&buffer[fs_f_header_offsets.hash_ln] )
+    
+    size_t expected_size = fs_f_header_offsets.sub_dir + *(uint16_t*)&buffer[fs_f_header_offsets.sub_dir_ln] + *(uint16_t*)&buffer[fs_f_header_offsets.base_name_ln] + *(uint16_t*)&buffer[fs_f_header_offsets.hash_ln];
+    DPrint("expected_size: 0x%zx\n", expected_size);
+    if ( buffer_size < expected_size )
         return -1;
 
     memcpy(&(h->type), &buffer[fs_f_header_offsets.type], sizeof(h->type));

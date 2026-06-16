@@ -774,7 +774,7 @@ int createFilePath(
     DPrint("  SubDir: %s\n", SubDir);
     DPrint("  BaseName: %s\n", BaseName);
     DPrint("  FileHeader: %p\n", (void*)FileHeader);
-    DPrint("  ClientSocket: %p\n", (void*)ClientSocket);
+    // DPrint("  ClientSocket: %p\n", (void*)ClientSocket);
     DPrint("  IsEncrypted: %d\n", IsEncrypted);
 
     char* tmpPath = malloc(FilePathMaxSize);
@@ -829,7 +829,7 @@ int createFilePath(
     // add BaseName to construct full file path
     bw = sprintf(&tmpPath[pb], "%c%s", PATH_SEPARATOR, BaseName);
     // tmpPath = ParentDir/SubDir/BaseName
-    if ( bw < 0 || bw >= FilePathMaxSize )
+    if ( bw < 0 || (uint32_t)bw >= FilePathMaxSize )
     {
         s = getLastError();
         EPrintP("sprintf failed! (0x%x)\n", s);

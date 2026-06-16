@@ -44,15 +44,6 @@ function clean() {
         return
     fi
 
-    rm -r ./CMakeFiles 2> /dev/null
-    rm -r ./CTestTestfile.cmake 2> /dev/null
-    rm -r ./CMakeCache.txt 2> /dev/null
-    rm -r ./cmake_install.cmake 2> /dev/null
-    rm -rf ./tests 2> /dev/null
-    rm -f ./*.cbp 2> /dev/null
-    rm -r ./Makefile 2> /dev/null
-    rm -rf ./debug 2> /dev/null
-
     rm -f ./*.o 2> /dev/null
 
     cd - || return 2
@@ -72,11 +63,11 @@ function buildTarget() {
     local dp=$4
     local ep=0
 
-echo "target: "$target
-echo "dir: "$dir
-echo "mode: "$mode
-echo "dp: "$dp
-echo "ep: "$ep
+    echo "target: "$target
+    echo "dir: "$dir
+    echo "mode: "$mode
+    echo "dp: "$dp
+    echo "ep: "$ep
 
     if ! mkdir -p ${dir}; then
         return 1
@@ -93,8 +84,8 @@ echo "ep: "$ep
         local flags="-Wall -pedantic -Wextra -Ofast -Werror=return-type -Werror=overflow -Werror=format"
     fi
 
-echo "dp "$dp
-echo "ep "$ep
+    echo "dp "$dp
+    echo "ep "$ep
 
     local dpf=
     if [[ $dp > 0 ]]; then
@@ -125,6 +116,7 @@ function printHelp() {
     echo "-d Build in debug mode"
     echo "-r Build in release mode"
     echo "-p Set debug printing <level>"
+    echo "-c Clean up build directory"
     echo "-h Print this."
     return 0;
 }
@@ -153,6 +145,10 @@ while (("$#")); do
             ;;
         -h | --help)
             help=1
+            break
+            ;;
+        -x | --purge-build)
+            clean=2
             break
             ;;
         -* | --usage)
