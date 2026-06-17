@@ -8,8 +8,8 @@ Compiles and runs under
 
 
 ## Version
-1.4.6  
-Last changed: 16.06.2026
+1.4.7  
+Last changed: 17.06.2026
 
 
 ## Requirements
@@ -133,12 +133,10 @@ There is no key exchange happening like e.g. in TLS.
 Currently, the private key has to be stored unencrypted as a file on the server system.  
 On Windows it has to be in `.der` format, on Linux in `.pem` Format.
 
-For each file a new AES key is created.
-
 
 ## Integrity
 The file data itself is checked by its sha256 hash. 
-Integrity checks and server authentication for the headers and maybe the answers as well will be added in future versions when RSA signing is got to work correctly on Windows.
+Integrity checks and server authentication for the headers and maybe the answers as well will be added in future versions.
 AES in GCM mode is planned.
 
 

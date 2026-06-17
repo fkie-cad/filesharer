@@ -643,6 +643,8 @@ clean:
 
 int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_encrypted)
 {
+    FEnter();
+
     int errsv;
     sendlen_t bytes_sent;
     sendlen_t send_size;
@@ -653,16 +655,17 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
 
     FsAnswer a = { .state = state, .code = code, .info = info };
     uint32_t answer_size = (uint32_t)saveFsAnswer(answer_ptr, &a);
-    uint32_t buffer_size = BUFFER_SIZE;
+    uint32_t data_buffer_size = BUFFER_SIZE;
     //uint8_t* buffer_ptr = (uint8_t*)gBuffer;
     
     DPrint("sendAnswer\n");
+    DPrint("  gBuffer: %p\n", gBuffer);
+
+    DPrint("  plain answer: %p\n", answer_ptr);
+    DPrintMemCol8(answer_ptr, answer_size, 0);
     
     if ( is_encrypted )
     {
-        DPrint("  buffer:\n");
-        DPrintBytes(gBuffer, answer_size);
-        
         uint8_t iv[AES_IV_SIZE];
         s = generateIV(iv, AES_IV_SIZE);
         if ( s != 0 )
@@ -672,13 +675,15 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
         }
         // prefix data with iv
         memcpy(gBuffer, iv, AES_IV_SIZE);
-        buffer_size -= AES_IV_SIZE;
+        data_buffer_size -= AES_IV_SIZE;
+        DPrint("  iv: %p\n", gBuffer);
+        DPrintBytes(gBuffer, AES_IV_SIZE);
 
         s = encryptData(
             answer_ptr, 
             answer_size, 
             &answer_ptr, 
-            &buffer_size, 
+            &data_buffer_size, 
             iv, 
             AES_IV_SIZE
         );
@@ -687,15 +692,16 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
             EPrintP("\nEncrypting file header failed! (0x%x)\n", s);
             goto clean;
         }
-        DPrint("  encrypted:\n");
-        DPrintBytes(answer_ptr, buffer_size);
+        DPrint("  encrypted answer:\n");
+        DPrintBytes(answer_ptr, data_buffer_size);
 
-        send_size = AES_IV_SIZE + buffer_size;
+        send_size = AES_IV_SIZE + data_buffer_size;
     }
     else
     {
         send_size = answer_size;
     }
+    DPrint("send_size: 0x%zx\n", (size_t)send_size);
 
     // make compiler happy sanity check
     if ( send_size < 0 || (uint32_t)send_size > BUFFER_SIZE )
@@ -726,6 +732,7 @@ int sendAnswer(uint8_t state, uint32_t code, size_t info, SOCKET sock, bool is_e
 
 clean:
 
+    FLeave();
     return s;
 }
 

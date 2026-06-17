@@ -12,8 +12,8 @@
 //#define ERROR_PRINT
 //#define DEBUG_PRINT
 
-typedef const EVP_CIPHER * (*BLOCK_CIPHER)();
-static BLOCK_CIPHER block_cipher = NULL;
+// typedef const EVP_CIPHER * (*BLOCK_CIPHER)();
+// static BLOCK_CIPHER block_cipher = NULL;
 
 
 int AES_init(
@@ -30,8 +30,8 @@ int AES_init(
         return -1;
     }
 
-    block_cipher = &EVP_aes_256_cbc;
-    ctxt->block_size = EVP_CIPHER_block_size((*block_cipher)());
+    ctxt->block_cipher = &EVP_aes_256_cbc;
+    ctxt->block_size = EVP_CIPHER_block_size((*ctxt->block_cipher)());
 
     return 0;
 }
@@ -89,7 +89,7 @@ int AES_encrypt(
     int len = 0;
     uint32_t req_size = GET_ENC_AES_SIZE(plain_ln);
 
-    if ( ctxt->key_ln != (uint32_t)EVP_CIPHER_key_length((*block_cipher)()) )
+    if ( ctxt->key_ln != (uint32_t)EVP_CIPHER_key_length((*ctxt->block_cipher)()) )
     {
 #ifdef ERROR_PRINT
         printf("ERROR: AES key is too small!\n");
@@ -98,7 +98,7 @@ int AES_encrypt(
         goto clean;
     }
 
-    if ( iv_ln != (uint32_t)EVP_CIPHER_iv_length((*block_cipher)()) )
+    if ( iv_ln != (uint32_t)EVP_CIPHER_iv_length((*ctxt->block_cipher)()) )
     {
 #ifdef ERROR_PRINT
         printf("ERROR: IV is too small!\n");
@@ -114,7 +114,7 @@ int AES_encrypt(
      * IV size for *most* modes is the same as the block size. For AES this
      * is 128 bits
      */
-    status = EVP_EncryptInit_ex(ctxt->ctx, (*block_cipher)(), NULL, ctxt->key, iv);
+    status = EVP_EncryptInit_ex(ctxt->ctx, (*ctxt->block_cipher)(), NULL, ctxt->key, iv);
     if ( status != 1 )
     {
 #ifdef ERROR_PRINT
@@ -199,7 +199,7 @@ int AES_decrypt(
     int len;
     *plain_ln = 0;
 
-    if ( ctxt->key_ln != (uint32_t)EVP_CIPHER_key_length((*block_cipher)()) )
+    if ( ctxt->key_ln != (uint32_t)EVP_CIPHER_key_length((*ctxt->block_cipher)()) )
     {
 #ifdef ERROR_PRINT
         printf("ERROR: AES key is too small!\n");
@@ -208,7 +208,7 @@ int AES_decrypt(
         goto clean;
     }
 
-    if ( iv_ln != (uint32_t)EVP_CIPHER_iv_length((*block_cipher)()) )
+    if ( iv_ln != (uint32_t)EVP_CIPHER_iv_length((*ctxt->block_cipher)()) )
     {
 #ifdef ERROR_PRINT
         printf("ERROR: IV is too small!\n");
@@ -217,7 +217,7 @@ int AES_decrypt(
         goto clean;
     }
 
-    status = EVP_DecryptInit_ex(ctxt->ctx, (*block_cipher)(), NULL, ctxt->key, iv);
+    status = EVP_DecryptInit_ex(ctxt->ctx, (*ctxt->block_cipher)(), NULL, ctxt->key, iv);
     if( status != 1 )
     {
 #ifdef ERROR_PRINT

@@ -10,17 +10,21 @@
 #define AES_STD_BLOCK_SIZE (0x10)
 #define AES_IV_SIZE AES_STD_BLOCK_SIZE
 
+// only valid for cbc
 #define GET_ENC_AES_SIZE(__ds__) ( __ds__ + ( AES_STD_BLOCK_SIZE - ( __ds__ % AES_STD_BLOCK_SIZE ) ) )
 
+typedef const EVP_CIPHER * (*BLOCK_CIPHER)();
 
 typedef struct _AES_CTXT {
     EVP_CIPHER_CTX *ctx;
     uint8_t *key;
+    BLOCK_CIPHER block_cipher;
     uint32_t key_ln;
     int block_size;
 } AES_CTXT, * PAES_CTXT;
 
 /**
+ * Init custom AES ctxt
  */
 int AES_init(
     PAES_CTXT ctxt

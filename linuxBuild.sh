@@ -67,7 +67,6 @@ function buildTarget() {
     echo "dir: "$dir
     echo "mode: "$mode
     echo "dp: "$dp
-    echo "ep: "$ep
 
     if ! mkdir -p ${dir}; then
         return 1
@@ -84,19 +83,20 @@ function buildTarget() {
         local flags="-Wall -pedantic -Wextra -Ofast -Werror=return-type -Werror=overflow -Werror=format"
     fi
 
-    echo "dp "$dp
-    echo "ep "$ep
+    # echo "dp "$dp
+    # echo "ep "$ep
 
     local dpf=
     if [[ $dp > 0 ]]; then
         dpf=-DDEBUG_PRINT=$dp
     fi
+    # echo "dpf "$dpf
 
     local epf=
     if [[ $ep > 0 ]]; then
         epf=-DERROR_PRINT
     fi
-echo "epf "$epf
+    # echo "epf "$epf
 
     gcc -o ${dir}/FShare -Wl,-z,relro,-z,now -D_FILE_OFFSET_BITS=64 $flags $dpf $epf -L/usr/lib -lcrypto src/fshare.c src/client.c src/server.c shared/collections/*.c shared/crypto/linux/*.c shared/files/Files.c shared/files/FilesL.c shared/net/sock.c shared/net/linSock.c src/FsHeader.c -Ishared
 
@@ -117,6 +117,7 @@ function printHelp() {
     echo "-r Build in release mode"
     echo "-p Set debug printing <level>"
     echo "-c Clean up build directory"
+    echo "-x Purge build directory"
     echo "-h Print this."
     return 0;
 }
@@ -147,7 +148,7 @@ while (("$#")); do
             help=1
             break
             ;;
-        -x | --purge-build)
+        -x | --purge)
             clean=2
             break
             ;;
