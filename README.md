@@ -2,14 +2,14 @@
 Cross Os (Linux/Windows) fileshare client and server with optional encryption.
 
 Compiles and runs under
-- Linux 
-- Windows (x86/x64)  
+- Linux
+- Windows (x86/x64)
 - Android in Termux
 
 
 ## Version
-1.4.7  
-Last changed: 17.06.2026
+1.4.8  
+Last changed: 24.06.2026
 
 
 ## Requirements

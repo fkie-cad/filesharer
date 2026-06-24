@@ -1,6 +1,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -131,42 +132,146 @@ void listFilesOfDir(char* path)
     printf("\n");
 }
 
+char *realpath_noent(const char *path, char *resolved)
+{
+    FEnter();
+
+    int errsv = 0;
+    char scratch[PATH_MAX] = { 0 };
+    char suffix[PATH_MAX] = ""; // non-existing trailing part
+    char tmp[PATH_MAX] = { 0 };
+    char real[PATH_MAX] = { 0 };
+
+    strncpy(scratch, path, PATH_MAX - 1);
+    scratch[PATH_MAX - 1] = '\0';
+
+    while ( 1 )
+    {
+        DPrint("scratch: %s\n", scratch);
+        DPrint("real: %s\n", real);
+     
+        char* rp = realpath(scratch, real );
+        DPrint("realpath(scratch, real ): %s\n", rp);
+        if ( rp != NULL )
+        {
+            DPrint("realpath(scratch, real ) != NULL\n");
+            DPrint("  real: %s\n", real);
+            DPrint("  suffix: %s\n", suffix);
+            // Found the deepest existing ancestor
+            if ( suffix[0] != '\0' )
+            {
+                size_t real_cb = strlen(real);
+                size_t suffix_cb = strlen(suffix);
+
+                if ( real_cb + 1 + suffix_cb >= PATH_MAX )
+                    return NULL; // overflow
+
+                memcpy(resolved, real, real_cb);
+                resolved[real_cb] = '/';
+                memcpy(resolved+real_cb+1, suffix, suffix_cb+1);
+                // snprintf(resolved, PATH_MAX, "%s/%s", real, suffix); // -Werror=format-truncation
+            }
+            else
+            {
+                strncpy(resolved, real, PATH_MAX);
+            }
+            DPrint("  resolved: %s\n", resolved);
+            errno = 0;
+            break;
+        }
+
+        // Peel off the last component into the suffix
+        strncpy(tmp, scratch, PATH_MAX);
+        char *base = basename(tmp); // last component
+        DPrint("realpath(scratch, real ) == NULL\n");
+        DPrint("  tmp: %s\n", tmp);
+        DPrint("  base: %s\n", base);
+
+        if (strcmp(base, "/") == 0 || strcmp(base, ".") == 0)
+        {
+            // Hit the root or a degenerate case — give up
+            return NULL;
+        }
+
+        DPrint("  suffix: %s\n", suffix);
+        // Prepend base to suffix: suffix = base/suffix  (or just base)
+        if (suffix[0] != '\0')
+        {
+            size_t base_cb = strlen(base);
+            size_t suffix_cb = strlen(suffix);
+
+            if ( base_cb + 1 + suffix_cb >= PATH_MAX )
+                return NULL; // overflow
+
+            char new_suffix[PATH_MAX];
+            memcpy(new_suffix, base, base_cb);
+            new_suffix[base_cb] = '/';
+            memcpy(new_suffix+base_cb+1, suffix, suffix_cb+1);
+            // snprintf(new_suffix, PATH_MAX, "%s/%s", base, suffix); // -Werror=format-truncation
+            strncpy(suffix, new_suffix, PATH_MAX);
+        }
+        else
+        {
+            size_t base_cb = strlen(base);
+            if ( base_cb >= PATH_MAX )
+                return NULL; // overflow
+
+            memcpy(suffix, base, base_cb+1);
+        }
+        DPrint("  suffix: %s\n", suffix);
+
+        // Move up: scratch = dirname(scratch)
+        strncpy(tmp, scratch, PATH_MAX);
+        DPrint("  tmp: %s\n", tmp);
+        char *dir = dirname(tmp);
+        DPrint("  dir: %s\n", dir);
+
+        if ( strcmp(dir, scratch) == 0 ) // no progress (e.g. at "/")
+            return NULL;
+
+        size_t dir_cb = strlen(dir);
+        if ( dir_cb >= PATH_MAX )
+            return NULL; // overflow
+
+        memcpy(scratch, dir, dir_cb+1);
+        DPrint("  scratch: %s\n", scratch);
+    }
+
+    FLeave();
+    return resolved;
+}
+
 size_t getFullPathName(const char* src, size_t max, char* full_path, char** base_name)
 {
-#ifdef DEBUG_PRINT
-    printf("[>] getFullPathName()\n");
-    printf("  src: %s\n", src);
-#endif
-    //sin = expandFilePath(src, full_path, n);
-    char* fp = realpath(src, full_path);
-#ifdef DEBUG_PRINT
-    printf("  full_path: %s\n", full_path);
-#endif
-    if ( fp == NULL && errno != ENOENT )
+    FEnter();
+    int errsv = 0;
+    
+    DPrint("  src: %s\n", src);
+    
+    char* fp = realpath_noent(src, full_path);
+    errsv = errno;
+    DPrint("  errno: 0x%x\n", errsv);
+    DPrint("  full_path: %s\n", full_path);
+    if ( fp == NULL || errsv != 0 )
     {
-        printf("[e] realpath failed! (0x%x)\n", errno);
+        printf("[e] realpath_noent failed! (0x%x)\n", errno);
         return 0;
     }
     size_t n = strlen(full_path);
-#ifdef DEBUG_PRINT
-    printf("  n: 0x%zx\n", n);
-#endif
+    DPrint("  n: 0x%zx\n", n);
     if ( base_name != NULL )
     {
-        size_t bn = getBaseName(full_path, n, base_name);
-#ifdef DEBUG_PRINT
-        printf("  bn: 0x%zx\n", bn);
-#endif
-        if ( !bn )
+        *base_name = basename(full_path);
+        if ( !base_name )
             return 0;
-#ifdef DEBUG_PRINT
-        printf("  base_name: %s\n", *base_name);
-#endif
+//         size_t bn = getBaseName(full_path, n, base_name);
+//         DPrint("  bn: 0x%zx\n", bn);
+        // if ( !bn )
+        //     return 0;
+        DPrint("  base_name: %s\n", *base_name);
     }
 
-#ifdef DEBUG_PRINT
-    printf("[<] getFullPathName()\n");
-#endif
+    FLeave();
     return n;
 }
 

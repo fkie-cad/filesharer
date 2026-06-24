@@ -201,9 +201,11 @@ int runServer(
     running = 1;
     while ( running )
     {
+        DPrint("running: 0x%x\n", running);
         handleConnection(sock, full_path, flags);
         printf("\n\n");
     }
+    DPrint("running: 0x%x\n", running);
 
 clean:
 
@@ -212,6 +214,7 @@ clean:
 
 int handleConnection(SOCKET ListenSocket, char* rec_dir, uint16_t flags)
 {
+    FEnter();
     uint32_t result;
     int le;
     bool is_encrypted = IS_ENCRYPTED(flags);
@@ -261,6 +264,7 @@ int handleConnection(SOCKET ListenSocket, char* rec_dir, uint16_t flags)
         DPrint("Waiting for data.\n");
 
         result = recv(clientSocket, (char*)gBuffer, BUFFER_SIZE, 0);
+        DPrint("result: 0x%x\n",result);
         if ( result > 0 )
         {
             s = handleData(
@@ -318,6 +322,9 @@ clean:
     if ( file_buffer )
         free(file_buffer);
 
+    DPrint("running: 0x%x\n", running);
+    DPrint("s: 0x%x\n", s);
+    FLeave();
     return s;
 }
 
@@ -775,7 +782,7 @@ int createFilePath(
     size_t fpbw = 0;
     size_t pd_cb = strlen(ParentDir);
     
-    DPrint("  FilePath: %s\n", FilePath);
+    // DPrint("  FilePath: %s\n", FilePath);
     DPrint("  FilePathMaxSize: 0x%x\n", FilePathMaxSize);
     DPrint("  ParentDir: %s\n", ParentDir);
     DPrint("  SubDir: %s\n", SubDir);
@@ -846,9 +853,18 @@ int createFilePath(
     // get abs path
     char* checkBaseName = NULL;
     fpbw = getFullPathName(tmpPath, FilePathMaxSize, FilePath, (char**)&checkBaseName);
-    DPrint("fpbw: 0x%zx\n", fpbw);
-    DPrint("checkBaseName: %s\n", checkBaseName);
     // check if we are still in ParentDir and baseName fits
+
+    DPrint("FilePath: %s\n", FilePath);
+    DPrint("ParentDir: %s\n", ParentDir);
+    DPrint("checkBaseName: %s\n", checkBaseName);
+    DPrint("BaseName: %s\n", BaseName);
+    // DPrint("fpbw: 0x%zx\n", fpbw);
+    // DPrint("FilePathMaxSize: 0x%x\n", FilePathMaxSize);
+    // DPrint("pd_cb: 0x%zx\n", pd_cb);
+    // DPrint("strncmp(FilePath, ParentDir, pd_cb): 0x%x\n", strncmp(FilePath, ParentDir, pd_cb));
+    DPrint("FilePath[%zx]: 0x%x\n", pd_cb, FilePath[pd_cb]);
+    // DPrint("strcmp(checkBaseName, BaseName): 0x%x\n", strcmp(checkBaseName, BaseName));
 
     if ( !fpbw || fpbw >= FilePathMaxSize
         || strncmp(FilePath, ParentDir, pd_cb) != 0
